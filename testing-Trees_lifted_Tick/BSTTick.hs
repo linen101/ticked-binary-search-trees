@@ -3,7 +3,7 @@
 module BSTTick ( Tree, Maybe, height, size, set, get) where
 
 import Language.Haskell.Liquid.RTick
-import Language.Haskell.Liquid.ProofCombinators
+import ProofCombinators
 import Functions_Types (max, min, Nat, Maybe(Nothing,Just))
 import Prelude hiding (Maybe(Nothing,Just), max, min, pure, return)
 
