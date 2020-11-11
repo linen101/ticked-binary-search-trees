@@ -1,0 +1,300 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>BST.hs</title>
+</head>
+<head>
+<link type='text/css' rel='stylesheet' href='liquid.css' />
+</head>
+
+<body>
+<hr>
+Put mouse over identifiers to see inferred types
+<pre><span class=hs-linenum>  1: </span><a class=annot href="#"><span class=annottext>GHC.Types.Module</span><span class='hs-keyword'>{-@</span></a> <span class='hs-conid'>LIQUID</span> <span class='hs-str'>"--reflection"</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>  2: </span><span class='hs-keyword'>{-@</span> <span class='hs-conid'>LIQUID</span> <span class='hs-str'>"--ple"</span> <span class='hs-keyword'>@-}</span> 
+<span class=hs-linenum>  3: </span><span class='hs-keyword'>{-@</span> <span class='hs-conid'>LIQUID</span> <span class='hs-str'>"--diff"</span> <span class='hs-keyword'>@-}</span> 
+<span class=hs-linenum>  4: </span>
+<span class=hs-linenum>  5: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>BST</span>  <span class='hs-layout'>(</span> <span class='hs-conid'>BSTree</span><span class='hs-layout'>,</span> <span class='hs-conid'>Maybe</span><span class='hs-layout'>,</span> <span class='hs-varid'>height</span><span class='hs-layout'>,</span> <span class='hs-varid'>size</span><span class='hs-layout'>,</span> <span class='hs-varid'>insert</span><span class='hs-layout'>,</span> <span class='hs-varid'>lookup</span><span class='hs-layout'>)</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>  6: </span>
+<span class=hs-linenum>  7: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Prelude</span> <span class='hs-varid'>hiding</span> <span class='hs-layout'>(</span> <span class='hs-conid'>Maybe</span><span class='hs-layout'>(</span><span class='hs-conid'>Nothing</span><span class='hs-layout'>,</span><span class='hs-conid'>Just</span><span class='hs-layout'>)</span><span class='hs-layout'>,</span><span class='hs-varid'>lookup</span><span class='hs-layout'>,</span> <span class='hs-varid'>max</span><span class='hs-layout'>,</span> <span class='hs-varid'>min</span><span class='hs-layout'>,</span> <span class='hs-varid'>pure</span><span class='hs-layout'>,</span> <span class='hs-varid'>return</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>  8: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Functions_Types</span> <span class='hs-layout'>(</span><span class='hs-varid'>max</span><span class='hs-layout'>,</span> <span class='hs-varid'>min</span><span class='hs-layout'>,</span> <span class='hs-conid'>Nat</span><span class='hs-layout'>,</span> <span class='hs-conid'>Maybe</span><span class='hs-layout'>(</span><span class='hs-conid'>Nothing</span><span class='hs-layout'>,</span><span class='hs-conid'>Just</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>  9: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Language.Haskell.Liquid.ProofCombinators</span>
+<span class=hs-linenum> 10: </span>
+<span class=hs-linenum> 11: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>NEBSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>{</span><span class='hs-varid'>t</span><span class='hs-conop'>:</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>|</span> <span class='hs-num'>0</span> <span class='hs-varop'>&lt;</span> <span class='hs-varid'>size</span> <span class='hs-varid'>t</span><span class='hs-layout'>}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 12: </span>
+<span class=hs-linenum> 13: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>data</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Nil</span>
+<span class=hs-linenum> 14: </span>                    <span class='hs-keyglyph'>|</span> <span class='hs-conid'>Node</span> <span class='hs-layout'>{</span> <span class='hs-varid'>tkey</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>k</span>
+<span class=hs-linenum> 15: </span>                           <span class='hs-layout'>,</span> <span class='hs-varid'>tval</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>v</span>
+<span class=hs-linenum> 16: </span>                           <span class='hs-layout'>,</span> <span class='hs-varid'>tleft</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>BSTree</span> <span class='hs-layout'>{</span><span class='hs-varid'>key</span><span class='hs-conop'>:</span><span class='hs-varid'>k</span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>key</span> <span class='hs-varop'>&lt;</span> <span class='hs-varid'>tkey</span> <span class='hs-layout'>}</span> <span class='hs-varid'>v</span>
+<span class=hs-linenum> 17: </span>                           <span class='hs-layout'>,</span> <span class='hs-varid'>tright</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>BSTree</span> <span class='hs-layout'>{</span><span class='hs-varid'>key</span><span class='hs-conop'>:</span><span class='hs-varid'>k</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>key</span> <span class='hs-varop'>&gt;</span> <span class='hs-varid'>tkey</span> <span class='hs-layout'>}</span> <span class='hs-varid'>v</span>
+<span class=hs-linenum> 18: </span>                           <span class='hs-layout'>}</span>
+<span class=hs-linenum> 19: </span>  <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 20: </span>
+<span class=hs-linenum> 21: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Nil</span> <span class='hs-keyglyph'>|</span> <span class='hs-conid'>Node</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-layout'>(</span><span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyword'>deriving</span> <span class='hs-conid'>Show</span>
+<span class=hs-linenum> 22: </span>
+<span class=hs-linenum> 23: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>reflect</span> <span class='hs-varid'>empty</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 24: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>empty</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyword'>{tr:</span><span class='hs-layout'>(</span><span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyword'>| size tr == 0}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 25: </span><span class='hs-definition'>empty</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span>
+<span class=hs-linenum> 26: </span><a class=annot href="#"><span class=annottext>forall a b . {VV : (BST.BSTree a b) | size VV == 0}</span><span class='hs-definition'>empty</span></a> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Nil</span>
+<span class=hs-linenum> 27: </span>
+<span class=hs-linenum> 28: </span>
+<span class=hs-linenum> 29: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>reflect</span> <span class='hs-varid'>singleton</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 30: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>singleton</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{t:</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyword'>| size t == 1 }</span><span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 31: </span><a class=annot href="#"><span class=annottext>forall a b . a -&gt; b -&gt; {t : (BST.BSTree a b) | size t == 1}</span><span class='hs-definition'>singleton</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>k</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>v</span></a> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Node</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == v}</span><span class='hs-varid'>v</span></a> <a class=annot href="#"><span class=annottext>{VV : forall a b .
+      {v : (BST.BSTree a b) | size v == 0
+                              &amp;&amp; height v == 0
+                              &amp;&amp; v == Nil} | VV == Nil}</span><span class='hs-conid'>Nil</span></a> <a class=annot href="#"><span class=annottext>{VV : forall a b .
+      {v : (BST.BSTree a b) | size v == 0
+                              &amp;&amp; height v == 0
+                              &amp;&amp; v == Nil} | VV == Nil}</span><span class='hs-conid'>Nil</span></a>
+<span class=hs-linenum> 32: </span>
+<span class=hs-linenum> 33: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>measure</span> <span class='hs-varid'>size</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 34: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>size</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Nat</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 35: </span><span class='hs-definition'>size</span>                <span class='hs-keyglyph'>::</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum> 36: </span><a class=annot href="#"><span class=annottext>forall a b .
+x1:(BST.BSTree a b) -&gt; {VV : GHC.Types.Int | VV == size x1
+                                             &amp;&amp; VV &gt;= 0}</span><span class='hs-definition'>size</span></a> <span class='hs-conid'>Nil</span>            <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : GHC.Prim.Int# | v == 0}</span><span class='hs-num'>0</span></a>
+<span class=hs-linenum> 37: </span><span class='hs-definition'>size</span> <span class='hs-layout'>(</span><span class='hs-conid'>Node</span> <span class='hs-keyword'>_</span> <span class='hs-keyword'>_</span> <span class='hs-varid'>l</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>1</span></a> <span class='hs-varop'>+</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == size l
+                     &amp;&amp; v &gt;= 0}</span><span class='hs-varid'>size</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree a b) | height v &gt;= 0
+                        &amp;&amp; 0 &lt;= size v
+                        &amp;&amp; 0 &lt;= height v
+                        &amp;&amp; v == l}</span><span class='hs-varid'>l</span></a> <span class='hs-varop'>+</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == size r
+                     &amp;&amp; v &gt;= 0}</span><span class='hs-varid'>size</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree a b) | height v &gt;= 0
+                        &amp;&amp; 0 &lt;= size v
+                        &amp;&amp; 0 &lt;= height v
+                        &amp;&amp; v == r}</span><span class='hs-varid'>r</span></a>
+<span class=hs-linenum> 38: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>invariant</span> <span class='hs-keyword'>{t:</span><span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyword'>| 0 &lt;= size t}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 39: </span>
+<span class=hs-linenum> 40: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>measure</span> <span class='hs-varid'>height</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 41: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>height</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Nat</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 42: </span><span class='hs-definition'>height</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum> 43: </span><a class=annot href="#"><span class=annottext>forall a b .
+x1:(BST.BSTree a b) -&gt; {VV : GHC.Types.Int | VV == height x1
+                                             &amp;&amp; VV &gt;= 0}</span><span class='hs-definition'>height</span></a> <span class='hs-conid'>Nil</span>            <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : GHC.Prim.Int# | v == 0}</span><span class='hs-num'>0</span></a>
+<span class=hs-linenum> 44: </span><span class='hs-definition'>height</span> <span class='hs-layout'>(</span><span class='hs-conid'>Node</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-varid'>l</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>1</span></a> <span class='hs-varop'>+</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-varid'>max</span></a> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == height l
+                     &amp;&amp; v &gt;= 0}</span><span class='hs-layout'>(</span></a><span class='hs-varid'>height</span> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &lt; k} b) | size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == l}</span><span class='hs-varid'>l</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == height r
+                     &amp;&amp; v &gt;= 0}</span><span class='hs-layout'>(</span></a><span class='hs-varid'>height</span> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &gt; k} b) | size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == r}</span><span class='hs-varid'>r</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum> 45: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>invariant</span> <span class='hs-keyword'>{t:</span><span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyword'>| 0 &lt;= height t}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 46: </span>
+<span class=hs-linenum> 47: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>reflect</span> <span class='hs-varid'>insert</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 48: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>insert</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Ord</span> <span class='hs-varid'>k</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>t</span><span class='hs-conop'>:</span><span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span><span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{ t':</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyword'>| size t' = size t || size t' = size t + 1}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 49: </span><span class='hs-definition'>insert</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Ord</span> <span class='hs-varid'>k</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span><span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span>
+<span class=hs-linenum> 50: </span><a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+x2:(BST.BSTree a b) -&gt; a -&gt; b -&gt; {t' : (BST.BSTree a b) | size t' == size x2
+                                                          || size t' == size x2 + 1}</span><span class='hs-definition'>insert</span></a> <span class='hs-conid'>Nil</span> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>k</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>v</span></a>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : forall a b .
+      x1:a -&gt; x2:b -&gt; {v : (BST.BSTree a b) | size v == 1
+                                              &amp;&amp; v == singleton x1 x2
+                                              &amp;&amp; v == Node x1 x2 Nil Nil} | VV == singleton}</span><span class='hs-varid'>singleton</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == v}</span><span class='hs-varid'>v</span></a>
+<span class=hs-linenum> 51: </span><span class='hs-definition'>insert</span> <span class='hs-layout'>(</span><span class='hs-conid'>Node</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-varid'>l</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span> <span class='hs-varid'>k'</span> <span class='hs-varid'>v'</span>
+<span class=hs-linenum> 52: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a> <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>    <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>{VV : forall a b .
+      x1:a -&gt; x2:b -&gt; x3:(BST.BSTree {VV : a | VV &lt; x1} b) -&gt; x4:(BST.BSTree {VV : a | VV &gt; x1} b) -&gt; {v : (BST.BSTree a b) | tright v == x4
+                                                                                                                              &amp;&amp; tleft v == x3
+                                                                                                                              &amp;&amp; tval v == x2
+                                                                                                                              &amp;&amp; tkey v == x1
+                                                                                                                              &amp;&amp; size v == (1 + size x3) + size x4
+                                                                                                                              &amp;&amp; height v == 1 + (if height x3 &gt; height x4 then height x3 else height x4)
+                                                                                                                              &amp;&amp; v == Node x1 x2 x3 x4} | VV == Node}</span><span class='hs-conid'>Node</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == v}</span><span class='hs-varid'>v</span></a> <a class=annot href="#"><span class=annottext>{v' : (BST.BSTree a b) | size v' == size l
+                         || size v' == size l + 1
+                         &amp;&amp; v' == insert l k v}</span><span class='hs-layout'>(</span></a><span class='hs-varid'>insert</span> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &lt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == l}</span><span class='hs-varid'>l</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == v}</span><span class='hs-varid'>v'</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &gt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == r}</span><span class='hs-varid'>r</span></a>
+<span class=hs-linenum> 53: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a> <span class='hs-varop'>&gt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>    <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>{VV : forall a b .
+      x1:a -&gt; x2:b -&gt; x3:(BST.BSTree {VV : a | VV &lt; x1} b) -&gt; x4:(BST.BSTree {VV : a | VV &gt; x1} b) -&gt; {v : (BST.BSTree a b) | tright v == x4
+                                                                                                                              &amp;&amp; tleft v == x3
+                                                                                                                              &amp;&amp; tval v == x2
+                                                                                                                              &amp;&amp; tkey v == x1
+                                                                                                                              &amp;&amp; size v == (1 + size x3) + size x4
+                                                                                                                              &amp;&amp; height v == 1 + (if height x3 &gt; height x4 then height x3 else height x4)
+                                                                                                                              &amp;&amp; v == Node x1 x2 x3 x4} | VV == Node}</span><span class='hs-conid'>Node</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == v}</span><span class='hs-varid'>v</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &lt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == l}</span><span class='hs-varid'>l</span></a> <a class=annot href="#"><span class=annottext>{v' : (BST.BSTree a b) | size v' == size r
+                         || size v' == size r + 1
+                         &amp;&amp; v' == insert r k v}</span><span class='hs-layout'>(</span></a><span class='hs-varid'>insert</span> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &gt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == r}</span><span class='hs-varid'>r</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == v}</span><span class='hs-varid'>v'</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum> 54: </span>    <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>{VV : forall a b .
+      x1:a -&gt; x2:b -&gt; x3:(BST.BSTree {VV : a | VV &lt; x1} b) -&gt; x4:(BST.BSTree {VV : a | VV &gt; x1} b) -&gt; {v : (BST.BSTree a b) | tright v == x4
+                                                                                                                              &amp;&amp; tleft v == x3
+                                                                                                                              &amp;&amp; tval v == x2
+                                                                                                                              &amp;&amp; tkey v == x1
+                                                                                                                              &amp;&amp; size v == (1 + size x3) + size x4
+                                                                                                                              &amp;&amp; height v == 1 + (if height x3 &gt; height x4 then height x3 else height x4)
+                                                                                                                              &amp;&amp; v == Node x1 x2 x3 x4} | VV == Node}</span><span class='hs-conid'>Node</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == v}</span><span class='hs-varid'>v'</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &lt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == l}</span><span class='hs-varid'>l</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &gt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == r}</span><span class='hs-varid'>r</span></a>
+<span class=hs-linenum> 55: </span>
+<span class=hs-linenum> 56: </span>
+<span class=hs-linenum> 57: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>reflect</span> <span class='hs-varid'>lookup</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 58: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>lookup</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>k</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span>  <span class='hs-varid'>t</span><span class='hs-conop'>:</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>k</span><span class='hs-conop'>:</span><span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Maybe</span> <span class='hs-varid'>v</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 59: </span><a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+(BST.BSTree a b) -&gt; a -&gt; (Functions_Types.Maybe b)</span><span class='hs-definition'>lookup</span></a> <span class='hs-conid'>Nil</span> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>k</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : forall a .
+      {v : (Functions_Types.Maybe a) | (isJust v &lt;=&gt; false)
+                                       &amp;&amp; v == Nothing} | VV == Nothing}</span><span class='hs-conid'>Nothing</span></a>
+<span class=hs-linenum> 60: </span><span class='hs-definition'>lookup</span> <span class='hs-layout'>(</span><span class='hs-conid'>Node</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-varid'>l</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span> <span class='hs-varid'>k'</span>
+<span class=hs-linenum> 61: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a> <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+(BST.BSTree a b) -&gt; a -&gt; (Functions_Types.Maybe b)</span><span class='hs-varid'>lookup</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &lt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == l}</span><span class='hs-varid'>l</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a>
+<span class=hs-linenum> 62: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a> <span class='hs-varop'>&gt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+(BST.BSTree a b) -&gt; a -&gt; (Functions_Types.Maybe b)</span><span class='hs-varid'>lookup</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &gt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == r}</span><span class='hs-varid'>r</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k'</span></a>
+<span class=hs-linenum> 63: </span>    <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : forall a .
+      x1:a -&gt; {v : (Functions_Types.Maybe a) | Just##lqdc##$select v == x1
+                                               &amp;&amp; (isJust v &lt;=&gt; true)
+                                               &amp;&amp; fromJust v == x1
+                                               &amp;&amp; v == Just x1} | VV == Just}</span><span class='hs-conid'>Just</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == v}</span><span class='hs-varid'>v</span></a>
+<span class=hs-linenum> 64: </span>
+<span class=hs-linenum> 65: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>lem_lookup_eq</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>k</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>tree</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>key</span><span class='hs-conop'>:</span><span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>val</span><span class='hs-conop'>:</span><span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> 
+<span class=hs-linenum> 66: </span>      <span class='hs-keyword'>{ lookup (insert tree key val) key = Just val }</span>
+<span class=hs-linenum> 67: </span>  <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 68: </span><span class='hs-definition'>lem_lookup_eq</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>k</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Proof</span>
+<span class=hs-linenum> 69: </span><a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+x2:(BST.BSTree a b) -&gt; x3:a -&gt; x4:b -&gt; {VV : () | lookup (insert x2 x3 x4) x3 == Just x4}</span><span class='hs-definition'>lem_lookup_eq</span></a> <span class='hs-conid'>Nil</span> <span class='hs-keyword'>_</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a>
+<span class=hs-linenum> 70: </span><span class='hs-definition'>lem_lookup_eq</span> <span class='hs-layout'>(</span><span class='hs-conid'>Node</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-varid'>l</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span> <span class='hs-varid'>key</span> <span class='hs-varid'>val</span>
+<span class=hs-linenum> 71: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>key</span></a> <span class='hs-varop'>==</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>        <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a> 
+<span class=hs-linenum> 72: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>key</span></a> <span class='hs-varop'>&lt;</span>  <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>        <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+x2:(BST.BSTree a b) -&gt; x3:a -&gt; x4:b -&gt; {VV : () | lookup (insert x2 x3 x4) x3 == Just x4}</span><span class='hs-varid'>lem_lookup_eq</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &lt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == l}</span><span class='hs-varid'>l</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>key</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>val</span></a>
+<span class=hs-linenum> 73: </span>    <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+x2:(BST.BSTree a b) -&gt; x3:a -&gt; x4:b -&gt; {VV : () | lookup (insert x2 x3 x4) x3 == Just x4}</span><span class='hs-varid'>lem_lookup_eq</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &gt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == r}</span><span class='hs-varid'>r</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>key</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>val</span></a>
+<span class=hs-linenum> 74: </span>
+<span class=hs-linenum> 75: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>lem_lookup_neq</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>k</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>tree</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>k1</span><span class='hs-conop'>:</span><span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>k2</span><span class='hs-conop'>:</span><span class='hs-keyword'>{ k2 /= k1 }</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>val</span><span class='hs-conop'>:</span><span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> 
+<span class=hs-linenum> 76: </span>      <span class='hs-keyword'>{ lookup (insert tree k2 val) k1 = lookup tree k1  }</span>
+<span class=hs-linenum> 77: </span>  <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 78: </span><span class='hs-definition'>lem_lookup_neq</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>k</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-conid'>BSTree</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>k</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Proof</span>
+<span class=hs-linenum> 79: </span><a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+x2:(BST.BSTree a b) -&gt; x3:a -&gt; x4:{VV : a | VV /= x3} -&gt; x5:b -&gt; {VV : () | lookup (insert x2 x4 x5) x3 == lookup x2 x3}</span><span class='hs-definition'>lem_lookup_neq</span></a> <span class='hs-conid'>Nil</span> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>k1</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1}</span><span class='hs-varid'>k2</span></a> <span class='hs-keyword'>_</span>  
+<span class=hs-linenum> 80: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a> <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a>             <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a>
+<span class=hs-linenum> 81: </span>    <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>           <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a>
+<span class=hs-linenum> 82: </span><span class='hs-definition'>lem_lookup_neq</span> <span class='hs-layout'>(</span><span class='hs-conid'>Node</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-varid'>l</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span> <span class='hs-varid'>k1</span> <span class='hs-varid'>k2</span> <span class='hs-varid'>v'</span> 
+<span class=hs-linenum> 83: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a> <span class='hs-varop'>&lt;</span>  <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>  <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a> 
+<span class=hs-linenum> 84: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>  <span class='hs-varop'>==</span> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a>            <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a> 
+<span class=hs-linenum> 85: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a> <span class='hs-varop'>==</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>  <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a> 
+<span class=hs-linenum> 86: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a> <span class='hs-varop'>&lt;</span>  <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a> <span class='hs-varop'>==</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a> 
+<span class=hs-linenum> 87: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a> <span class='hs-varop'>&lt;</span>  <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>  <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a>
+<span class=hs-linenum> 88: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a> <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a> <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a>      <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+x2:(BST.BSTree a b) -&gt; x3:a -&gt; x4:{VV : a | VV /= x3} -&gt; x5:b -&gt; {VV : () | lookup (insert x2 x4 x5) x3 == lookup x2 x3}</span><span class='hs-varid'>lem_lookup_neq</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &lt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == l}</span><span class='hs-varid'>l</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>v'</span></a>
+<span class=hs-linenum> 89: </span>    <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a> <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == k}</span><span class='hs-varid'>k</span></a> <span class='hs-varop'>&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a>      <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a b .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+x2:(BST.BSTree a b) -&gt; x3:a -&gt; x4:{VV : a | VV /= x3} -&gt; x5:b -&gt; {VV : () | lookup (insert x2 x4 x5) x3 == lookup x2 x3}</span><span class='hs-varid'>lem_lookup_neq</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree {VV : a | VV &gt; k} b) | height v &gt;= 0
+                                        &amp;&amp; size v &gt;= 0
+                                        &amp;&amp; 0 &lt;= size v
+                                        &amp;&amp; 0 &lt;= height v
+                                        &amp;&amp; v == r}</span><span class='hs-varid'>r</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == k1}</span><span class='hs-varid'>k1</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV /= k1
+          &amp;&amp; VV == k2}</span><span class='hs-varid'>k2</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>v'</span></a>
+<span class=hs-linenum> 90: </span>
+<span class=hs-linenum> 91: </span>
+<span class=hs-linenum> 92: </span>
+<span class=hs-linenum> 93: </span><span class='hs-comment'>-------------------------------------------------------------------------------</span>
+<span class=hs-linenum> 94: </span><span class='hs-comment'>-- | example BSTree | ---------------------------------------------------------</span>
+<span class=hs-linenum> 95: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>reflect</span> <span class='hs-varid'>exTree</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum> 96: </span><span class='hs-definition'>exTree</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>()</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>BSTree</span> <span class='hs-conid'>Int</span> <span class='hs-conid'>String</span> 
+<span class=hs-linenum> 97: </span><a class=annot href="#"><span class=annottext>x1:() -&gt; {VV : (BST.BSTree GHC.Types.Int [GHC.Types.Char]) | VV == exTree x1
+                                                             &amp;&amp; VV == insert (insert (insert Nil 10 "cat") 20 "dog") 30 "zebra"}</span><span class='hs-definition'>exTree</span></a> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>insert</span> <a class=annot href="#"><span class=annottext>(BST.BSTree GHC.Types.Int [GHC.Types.Char])</span><span class='hs-layout'>(</span></a><span class='hs-varid'>insert</span> <a class=annot href="#"><span class=annottext>(BST.BSTree GHC.Types.Int [GHC.Types.Char])</span><span class='hs-layout'>(</span></a><span class='hs-varid'>insert</span> <a class=annot href="#"><span class=annottext>{VV : forall a b .
+      {v : (BST.BSTree a b) | size v == 0
+                              &amp;&amp; height v == 0
+                              &amp;&amp; v == Nil} | VV == Nil}</span><span class='hs-conid'>Nil</span></a> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>10</span></a> <a class=annot href="#"><span class=annottext>[GHC.Types.Char]</span><span class='hs-str'>"cat"</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>20</span></a> <a class=annot href="#"><span class=annottext>[GHC.Types.Char]</span><span class='hs-str'>"dog"</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>30</span></a> <a class=annot href="#"><span class=annottext>[GHC.Types.Char]</span><span class='hs-str'>"zebra"</span></a>
+<span class=hs-linenum> 98: </span>
+<span class=hs-linenum> 99: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>propOK</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>()</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>TT</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>100: </span><span class='hs-definition'>propOK</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>()</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Bool</span> 
+<span class=hs-linenum>101: </span><a class=annot href="#"><span class=annottext>() -&gt; {VV : GHC.Types.Bool | VV}</span><span class='hs-definition'>propOK</span></a> <span class='hs-conid'>()</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(Functions_Types.Maybe [GHC.Types.Char])</span><span class='hs-varid'>lookup</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree GHC.Types.Int [GHC.Types.Char]) | v == exTree ()
+                                                   &amp;&amp; v == insert (insert (insert Nil 10 "cat") 20 "dog") 30 "zebra"
+                                                   &amp;&amp; height v &gt;= 0
+                                                   &amp;&amp; size v &gt;= 0
+                                                   &amp;&amp; 0 &lt;= size v
+                                                   &amp;&amp; 0 &lt;= height v
+                                                   &amp;&amp; v == ex}</span><span class='hs-varid'>ex</span></a> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>10</span></a> <span class='hs-varop'>==</span> <a class=annot href="#"><span class=annottext>{v : (Functions_Types.Maybe [GHC.Types.Char]) | isJust v &lt;=&gt; true}</span><span class='hs-conid'>Just</span></a> <a class=annot href="#"><span class=annottext>[GHC.Types.Char]</span><span class='hs-str'>"cat"</span></a> 
+<span class=hs-linenum>102: </span>         <span class='hs-varop'>&amp;&amp;</span> <a class=annot href="#"><span class=annottext>(Functions_Types.Maybe [GHC.Types.Char])</span><span class='hs-varid'>lookup</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree GHC.Types.Int [GHC.Types.Char]) | v == exTree ()
+                                                   &amp;&amp; v == insert (insert (insert Nil 10 "cat") 20 "dog") 30 "zebra"
+                                                   &amp;&amp; height v &gt;= 0
+                                                   &amp;&amp; size v &gt;= 0
+                                                   &amp;&amp; 0 &lt;= size v
+                                                   &amp;&amp; 0 &lt;= height v
+                                                   &amp;&amp; v == ex}</span><span class='hs-varid'>ex</span></a> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>20</span></a> <span class='hs-varop'>==</span> <a class=annot href="#"><span class=annottext>{v : (Functions_Types.Maybe [GHC.Types.Char]) | isJust v &lt;=&gt; true}</span><span class='hs-conid'>Just</span></a> <a class=annot href="#"><span class=annottext>[GHC.Types.Char]</span><span class='hs-str'>"dog"</span></a>
+<span class=hs-linenum>103: </span>         <span class='hs-varop'>&amp;&amp;</span> <a class=annot href="#"><span class=annottext>(Functions_Types.Maybe [GHC.Types.Char])</span><span class='hs-varid'>lookup</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree GHC.Types.Int [GHC.Types.Char]) | v == exTree ()
+                                                   &amp;&amp; v == insert (insert (insert Nil 10 "cat") 20 "dog") 30 "zebra"
+                                                   &amp;&amp; height v &gt;= 0
+                                                   &amp;&amp; size v &gt;= 0
+                                                   &amp;&amp; 0 &lt;= size v
+                                                   &amp;&amp; 0 &lt;= height v
+                                                   &amp;&amp; v == ex}</span><span class='hs-varid'>ex</span></a> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>30</span></a> <span class='hs-varop'>==</span> <a class=annot href="#"><span class=annottext>{v : (Functions_Types.Maybe [GHC.Types.Char]) | isJust v &lt;=&gt; true}</span><span class='hs-conid'>Just</span></a> <a class=annot href="#"><span class=annottext>[GHC.Types.Char]</span><span class='hs-str'>"zebra"</span></a>
+<span class=hs-linenum>104: </span>         <span class='hs-varop'>&amp;&amp;</span> <a class=annot href="#"><span class=annottext>(Functions_Types.Maybe [GHC.Types.Char])</span><span class='hs-varid'>lookup</span></a> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree GHC.Types.Int [GHC.Types.Char]) | v == exTree ()
+                                                   &amp;&amp; v == insert (insert (insert Nil 10 "cat") 20 "dog") 30 "zebra"
+                                                   &amp;&amp; height v &gt;= 0
+                                                   &amp;&amp; size v &gt;= 0
+                                                   &amp;&amp; 0 &lt;= size v
+                                                   &amp;&amp; 0 &lt;= height v
+                                                   &amp;&amp; v == ex}</span><span class='hs-varid'>ex</span></a> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>0</span></a>  <span class='hs-varop'>==</span> <a class=annot href="#"><span class=annottext>{VV : forall a .
+      {v : (Functions_Types.Maybe a) | (isJust v &lt;=&gt; false)
+                                       &amp;&amp; v == Nothing} | VV == Nothing}</span><span class='hs-conid'>Nothing</span></a>
+<span class=hs-linenum>105: </span>  <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>106: </span>    <a class=annot href="#"><span class=annottext>{v : (BST.BSTree GHC.Types.Int [GHC.Types.Char]) | v == exTree ()
+                                                   &amp;&amp; v == insert (insert (insert Nil 10 "cat") 20 "dog") 30 "zebra"}</span><span class='hs-varid'>ex</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : (BST.BSTree GHC.Types.Int [GHC.Types.Char]) | v == exTree ()
+                                                   &amp;&amp; v == insert (insert (insert Nil 10 "cat") 20 "dog") 30 "zebra"}</span><span class='hs-varid'>exTree</span></a> <a class=annot href="#"><span class=annottext>{v : () | v == ()}</span><span class='hs-conid'>()</span></a>
+<span class=hs-linenum>107: </span>
+<span class=hs-linenum>108: </span>
+<span class=hs-linenum>109: </span>
+<span class=hs-linenum>110: </span>
+<span class=hs-linenum>111: </span>
+<span class=hs-linenum>112: </span>
+<span class=hs-linenum>113: </span>
+<span class=hs-linenum>114: </span>
+</pre>
+</body>
+</html>
