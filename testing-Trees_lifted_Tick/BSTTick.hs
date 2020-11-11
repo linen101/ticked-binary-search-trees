@@ -2,7 +2,7 @@
 
 module BSTTick ( Tree, Maybe, height, size, set, get) where
 
-import Language.Haskell.Liquid.RTick
+import RTick
 import ProofCombinators
 import Functions_Types (max, min, Nat, Maybe(Nothing,Just))
 import Prelude hiding (Maybe(Nothing,Just), max, min, pure, return)
@@ -80,40 +80,108 @@ set (Node k v l r) k' v'
 set' :: Ord k => Tree k v-> k -> v -> Tick (Tree k v)
 set' Nil k v = singleton k v
 set' (Node k v l r) k' v'
-    | k' < k    = let Tick n l' = step 1 (set l k' v') in Tick n (Node k v l' r)
-    | k' > k    = let Tick n r' = step 1 (set r k' v') in Tick n (Node k v l r')
+    | k' < k    = let Tick n l' = step 1 (set' l k' v') in Tick n (Node k v l' r)
+    | k' > k    = let Tick n r' = step 1 (set' r k' v') in Tick n (Node k v l r')
     | otherwise = wait (Node k v' l r)
 
 {-@ reflect get @-}
-{-@ get :: (Ord k) =>  ts: BST k v -> k:k -> 
+{-@ get :: (Ord k) =>  k:k -> ts: BST k v -> 
          { t:Tick (Maybe v) | tcost t <= height ts} @-}
-get :: (Ord k) => Tree k v -> k -> Tick (Maybe v)           
-get Nil _    = pure Nothing
-get (Node k v l r) key
-    | key < k    = step 1 (get l key)
-    | key > k    = step 1 (get r key)
-    | otherwise = pure (Just v)
+get :: (Ord k) => k -> Tree k v ->  Tick (Maybe v)           
+get _ Nil    = pure Nothing
+get key (Node k v l r) 
+    | key < k    = step 1 (get key l)
+    | key > k    = step 1 (get key r)
+    | otherwise  = wait (Just v)
 
 
 -------------------------------------------------------------------------------
--- | Cost proofs:
+-- |Extrinsic Cost proofs:
 -------------------------------------------------------------------------------
 
-{-@ getCost :: (Ord k) => b:BST k v -> key:k
-    -> { tcost (get b key) <= height b} 
+{-@ getCost :: (Ord k) => key:k-> b:BST k v ->
+            { tcost (get key b) <= height b} 
     / [height b] @-}
-getCost :: (Ord k) => Tree k v -> k -> Proof
-getCost b@(Nil) k
-   = tcost (get b k)
+getCost :: (Ord k) => k -> Tree k v ->  Proof
+getCost key b@(Nil)
+   = tcost (get key b)
    ==. tcost (pure Nothing)
    ==. tcost (Tick 0 Nothing)
    ==. 0
-   ==. height b
+   <=. height b
    *** QED
-{-getCost b@(Node k v l r) k   
--}
 
--- | An example BST
+getCost key b@(Node k v l r) | key == k 
+   = tcost (get key b)
+   ==. tcost (wait (Just v))
+   ==. tcost (Tick 1 (Just v))
+   ==. 1
+   <=. height b
+   *** QED
+
+getCost key b@(Node k v l r) | key < k
+   = tcost (get key b)
+   ==. tcost (step 1 (get key l))
+   ==. 1 + tcost (get key l)
+       ? getCost key l
+   <=. 1 + height l
+   <=. height b
+   *** QED
+
+getCost key b@(Node k v l r) | key > k
+   = tcost (get key b)
+   ==. tcost (step 1 (get key r))
+   ==. 1 + tcost (get key r)
+       ? getCost key r
+   <=. 1 + height r
+   <=. height b
+   *** QED
+
+
+{-@ setCost :: (Ord k) => key:k -> val:v -> b:BST k v ->
+            { tcost (set' b key val) <= height b} 
+    / [height b] @-}
+setCost :: (Ord k) => k -> v -> Tree k v ->  Proof    
+setCost key val b@(Nil)
+    = tcost (set' b key val)
+    ==. tcost (singleton key val)    
+    ==. tcost (pure (Node key val Nil Nil))
+    ==. 0
+    ==. height b
+    <=. height b
+    *** QED
+
+setCost key val b@(Node k v l r) | key == k 
+    = tcost (set' b key val)
+    ==. tcost (wait (Node k val l r))
+    ==. tcost (Tick 1 (Node k val l r))
+    ==. 1
+    <=. height b
+    *** QED
+
+setCost key val b@(Node k v l r) | key < k
+    = tcost (set' b key val)
+    ==. tcost (let Tick n l' = step 1 (set' l key val) in Tick n (Node k v l' r))
+    ==. tcost (step 1 (set' l  key val))
+    ==. 1 + tcost (set' l key val)
+        ? setCost key val l
+    <=. 1 + height l
+    <=. height b
+    *** QED
+
+setCost key val b@(Node k v l r) | key > k
+    = tcost (set' b key val)
+    ==. tcost (let Tick n r' = step 1 (set' r key val) in Tick n (Node k v l r'))
+    ==. tcost (step 1 (set' r  key val))
+    ==. 1 + tcost (set' r key val)
+        ? setCost key val r
+    <=. 1 + height r
+    <=. height b
+    *** QED
+
+-------------------------------------------------------------------------------
+-- |an example BST
+-------------------------------------------------------------------------------
 {-@ reflect tree1 @-}
 {-@ tree1 :: BST Int String @-}
 tree1 :: (Tree Int String)
@@ -123,10 +191,13 @@ tree1 = tval ( set ( tval (set (tval (set Nil 10 "cat") ) 20 "dog") ) 30 "zebra"
 
 {-@ test :: () -> TT  @-}
 test :: () -> Bool 
-test () =  tcost (get tree1 10) <= height tree1
+test () =  tcost (get 10 tree1) <= height tree1
 
        
--- | Another example BST  
+-------------------------------------------------------------------------------
+-- |anpther example BST
+-------------------------------------------------------------------------------
+ 
 {-@ reflect tree2 @-}
 {-@ tree2 :: BST Int String @-}
 tree2 :: (Tree Int String)
