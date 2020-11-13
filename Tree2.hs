@@ -1,4 +1,4 @@
-module Tree2 (Tree, Nat, NETree, height, size, root) where
+module Tree2 (Tree(..), Nat, NETree, height, size, root) where
 
 {-@ type Nat = {v:Int | 0 <= v} @-}
 type Nat = Int

@@ -1,11 +1,11 @@
 {-@ LIQUID "--reflection" @-}
 
-module BSTTick ( Tree, Maybe, height, size, set, get) where
+module BSTTick (Tree(..), Maybe(..), height, size, set, get) where
 
 import RTick
 import ProofCombinators
-import Functions_Types (max, min, Nat, Maybe(Nothing,Just))
-import Prelude hiding (Maybe(Nothing,Just), max, min, pure, return)
+import Functions_Types (max, min, Nat, Maybe(..))
+import Prelude hiding (Maybe(..), max, min, pure, return)
 
 
 -------------------------------------------------------------------------------
@@ -14,7 +14,7 @@ import Prelude hiding (Maybe(Nothing,Just), max, min, pure, return)
 
 {-@ type NETree k v= {t: Tree k v | 0 < size t} @-}
 
-{-@ data Tree k v <l :: root:k -> x:k -> Bool, r :: root:k -> x:k -> Bool> 
+{-@ data Tree k v <l :: root:k -> x:k -> Bool, r :: root:k -> x:k -> Bool>
         = Nil
         | Node { key :: k
                , val :: v
@@ -54,29 +54,29 @@ empty = pure Nil
 
 {-@ reflect singleton@-}
 {-@ singleton :: k -> v -> { t:Tick { ts:(BST k v) | size ts == 1 } | tcost t == 0 } @-}
-singleton :: Ord k=> k -> v -> Tick (Tree k v) 
+singleton :: Ord k=> k -> v -> Tick (Tree k v)
 singleton k v = pure (Node k v Nil Nil)
 
 {-@ reflect set @-}
-{-@ set :: Ord k => ts:BST k v-> k -> v -> 
+{-@ set :: Ord k => ts:BST k v-> k -> v ->
             { t:Tick { ts':(BST k v) | size ts' == size ts + 1 || size ts' == size ts } | tcost t <= height ts  } @-}
 set :: Ord k => Tree k v-> k -> v -> Tick (Tree k v)
 set Nil k v  =  singleton k v
 set (Node k v l r) k' v'
-    | k' < k =  if tcost l' >0 
+    | k' < k =  if tcost l' >0
                     then waitN (tcost l')  (Node k v (tval l') r)
                     else wait (Node k v (tval l') r)
-    | k' > k =  if tcost r' >0 
+    | k' > k =  if tcost r' >0
                     then waitN  (tcost r') (Node k v l (tval r'))
                     else wait (Node k v l (tval r'))
     | otherwise =  wait (Node k v' l r)
-    where 
+    where
         l' = step 1 (set l k' v')
         r' = step 1 (set r k' v')
 
 {-@ reflect set' @-}
-{-@ set' :: Ord k => ts:BST k v-> k -> v -> 
-            { t:Tick { ts':(BST k v) | size ts' == size ts + 1 || size ts' == size ts } | tcost t <= height ts  } @-}        
+{-@ set' :: Ord k => ts:BST k v-> k -> v ->
+            { t:Tick { ts':(BST k v) | size ts' == size ts + 1 || size ts' == size ts } | tcost t <= height ts  } @-}
 set' :: Ord k => Tree k v-> k -> v -> Tick (Tree k v)
 set' Nil k v = singleton k v
 set' (Node k v l r) k' v'
@@ -85,11 +85,11 @@ set' (Node k v l r) k' v'
     | otherwise = wait (Node k v' l r)
 
 {-@ reflect get @-}
-{-@ get :: (Ord k) =>  k:k -> ts: BST k v -> 
+{-@ get :: (Ord k) =>  k:k -> ts: BST k v ->
          { t:Tick (Maybe v) | tcost t <= height ts} @-}
-get :: (Ord k) => k -> Tree k v ->  Tick (Maybe v)           
+get :: (Ord k) => k -> Tree k v ->  Tick (Maybe v)
 get _ Nil    = pure Nothing
-get key (Node k v l r) 
+get key (Node k v l r)
     | key < k    = step 1 (get key l)
     | key > k    = step 1 (get key r)
     | otherwise  = wait (Just v)
@@ -100,7 +100,7 @@ get key (Node k v l r)
 -------------------------------------------------------------------------------
 
 {-@ getCost :: (Ord k) => key:k-> b:BST k v ->
-            { tcost (get key b) <= height b} 
+            { tcost (get key b) <= height b}
     / [height b] @-}
 getCost :: (Ord k) => k -> Tree k v ->  Proof
 getCost key b@(Nil)
@@ -111,7 +111,7 @@ getCost key b@(Nil)
    <=. height b
    *** QED
 
-getCost key b@(Node k v l r) | key == k 
+getCost key b@(Node k v l r) | key == k
    = tcost (get key b)
    ==. tcost (wait (Just v))
    ==. tcost (Tick 1 (Just v))
@@ -139,19 +139,19 @@ getCost key b@(Node k v l r) | key > k
 
 
 {-@ setCost :: (Ord k) => key:k -> val:v -> b:BST k v ->
-            { tcost (set' b key val) <= height b} 
+            { tcost (set' b key val) <= height b}
     / [height b] @-}
-setCost :: (Ord k) => k -> v -> Tree k v ->  Proof    
+setCost :: (Ord k) => k -> v -> Tree k v ->  Proof
 setCost key val b@(Nil)
     = tcost (set' b key val)
-    ==. tcost (singleton key val)    
+    ==. tcost (singleton key val)
     ==. tcost (pure (Node key val Nil Nil))
     ==. 0
     ==. height b
     <=. height b
     *** QED
 
-setCost key val b@(Node k v l r) | key == k 
+setCost key val b@(Node k v l r) | key == k
     = tcost (set' b key val)
     ==. tcost (wait (Node k val l r))
     ==. tcost (Tick 1 (Node k val l r))
@@ -190,14 +190,14 @@ tree1 = tval ( set ( tval (set (tval (set Nil 10 "cat") ) 20 "dog") ) 30 "zebra"
 
 
 {-@ test :: () -> TT  @-}
-test :: () -> Bool 
+test :: () -> Bool
 test () =  tcost (get 10 tree1) <= height tree1
 
-       
+
 -------------------------------------------------------------------------------
 -- |anpther example BST
 -------------------------------------------------------------------------------
- 
+
 {-@ reflect tree2 @-}
 {-@ tree2 :: BST Int String @-}
 tree2 :: (Tree Int String)

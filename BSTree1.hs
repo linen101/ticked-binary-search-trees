@@ -1,4 +1,4 @@
-module BSTree (BSTree, size, height, insert, search, root) where
+module BSTree (BSTree(..), size, height, insert, search, root) where
 
 {-@ type Nat = {v:Int | 0 <= v} @-}
 

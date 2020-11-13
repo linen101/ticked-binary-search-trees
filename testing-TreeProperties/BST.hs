@@ -1,11 +1,11 @@
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--ple" @-} 
-{-@ LIQUID "--diff" @-} 
+{-@ LIQUID "--ple" @-}
+{-@ LIQUID "--diff" @-}
 
-module BST  ( BSTree, Maybe, height, size, insert, lookup) where
+module BST (BSTree(..), Maybe(..), height, size, insert, lookup) where
 
-import Prelude hiding ( Maybe(Nothing,Just),lookup, max, min, pure, return)
-import Functions_Types (max, min, Nat, Maybe(Nothing,Just))
+import Prelude hiding (Maybe(..), lookup, max, min, pure, return)
+import Functions_Types (max, min, Nat, Maybe(..))
 import Language.Haskell.Liquid.ProofCombinators
 
 {-@ type NEBSTree k v = {t: BSTree k v | 0 < size t} @-}
@@ -62,28 +62,28 @@ lookup (Node k v l r) k'
     | k' > k    = lookup r k'
     | otherwise = Just v
 
-{-@ lem_lookup_eq :: (Ord k) => tree:(BSTree k v) -> key:k -> val:v -> 
+{-@ lem_lookup_eq :: (Ord k) => tree:(BSTree k v) -> key:k -> val:v ->
       { lookup (insert tree key val) key = Just val }
   @-}
 lem_lookup_eq :: (Ord k) => BSTree k v -> k -> v -> Proof
 lem_lookup_eq Nil _ _ = ()
 lem_lookup_eq (Node k v l r) key val
-    | key == k        = () 
+    | key == k        = ()
     | key <  k        = lem_lookup_eq l key val
     | otherwise       = lem_lookup_eq r key val
 
-{-@ lem_lookup_neq :: (Ord k) => tree:(BSTree k v) -> k1:k -> k2:{ k2 /= k1 } -> val:v -> 
+{-@ lem_lookup_neq :: (Ord k) => tree:(BSTree k v) -> k1:k -> k2:{ k2 /= k1 } -> val:v ->
       { lookup (insert tree k2 val) k1 = lookup tree k1  }
   @-}
 lem_lookup_neq :: (Ord k) => BSTree k v -> k -> k -> v -> Proof
-lem_lookup_neq Nil k1 k2 _  
+lem_lookup_neq Nil k1 k2 _
     | k1 < k2             = ()
     | otherwise           = ()
-lem_lookup_neq (Node k v l r) k1 k2 v' 
-    | k1 <  k, k  < k2    = () 
-    | k  == k2            = () 
-    | k1 == k, k  < k2    = () 
-    | k2 <  k, k == k1    = () 
+lem_lookup_neq (Node k v l r) k1 k2 v'
+    | k1 <  k, k  < k2    = ()
+    | k  == k2            = ()
+    | k1 == k, k  < k2    = ()
+    | k2 <  k, k == k1    = ()
     | k2 <  k, k  < k1    = ()
     | k1 < k, k2 < k      = lem_lookup_neq l k1 k2 v'
     | k < k1, k < k2      = lem_lookup_neq r k1 k2 v'
@@ -93,22 +93,14 @@ lem_lookup_neq (Node k v l r) k1 k2 v'
 -------------------------------------------------------------------------------
 -- | example BSTree | ---------------------------------------------------------
 {-@ reflect exTree @-}
-exTree :: () -> BSTree Int String 
+exTree :: () -> BSTree Int String
 exTree _ = insert (insert (insert Nil 10 "cat") 20 "dog") 30 "zebra"
 
 {-@ propOK :: () -> TT @-}
-propOK :: () -> Bool 
-propOK () = lookup ex 10 == Just "cat" 
+propOK :: () -> Bool
+propOK () = lookup ex 10 == Just "cat"
          && lookup ex 20 == Just "dog"
          && lookup ex 30 == Just "zebra"
          && lookup ex 0  == Nothing
-  where 
+  where
     ex    = exTree ()
-
-
-
-
-
-
-
-

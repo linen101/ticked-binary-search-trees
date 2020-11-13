@@ -5,7 +5,6 @@ module Fold (foldl) where
 import Language.Haskell.Liquid.RTick
 import Prelude hiding (foldl, pure, length)
 
-
 {-@ measure length @-}
 {-@ length :: [a] -> Nat @-}
 length :: [a] -> Int

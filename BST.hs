@@ -1,28 +1,28 @@
-module BST  ( BSTree, Maybe, height, size, insert, lookup) where
+module BST (BSTree(..), Maybe(..), height, size, insert, lookup) where
 
-import Prelude hiding ( Maybe(Nothing,Just),lookup, max, min,)
+import Prelude hiding (Maybe(..), lookup, max, min)
 
 {-@ inline max @-}
-max :: Ord a =>  a-> a ->  a
+max :: Ord a => a -> a -> a
 max x y = if x > y then x else y
 
 {-@ inline min @-}
-min :: Ord a => a ->  a -> a
+min :: Ord a => a -> a -> a
 min x y = if x > y then y else x
 
 {-@ type Nat = {v:Int | 0 <= v} @-}
 
-{-@ type NEBSTree a = {t: BSTree a | 0 < size t} @-}
+{-@ type NEBSTree k v = {t: BSTree k v | 0 < size t} @-}
 
 {-@ data BSTree k v = Nil
                     | Node { tkey :: k
                            , tval :: v
-                           , tleft :: BSTree {key:k  | key < tkey } v
+                           , tleft :: BSTree {key:k | key < tkey } v
                            , tright :: BSTree {key:k | key > tkey } v
                            }
   @-}
 
-data Maybe a = Just a | Nothing   
+data Maybe a = Just a | Nothing
 
 data BSTree k v = Nil | Node k v (BSTree k v) (BSTree k v) deriving Show
 
@@ -34,7 +34,7 @@ singleton k v = Node k v Nil Nil
 
 {-@ measure size @-}
 {-@ size :: BSTree k v -> Nat @-}
-size                :: BSTree k v -> Int
+size :: BSTree k v -> Int
 size Nil            = 0
 size (Node _ _ l r) = 1 + size l + size r
 {-@ invariant {t:Tree k v | 0 <= size t} @-}
@@ -60,10 +60,3 @@ lookup (Node k v l r) k'
     | k' < k    = lookup l k'
     | k' > k    = lookup r k'
     | otherwise = Just v
-
-
-
-
-
-
-
