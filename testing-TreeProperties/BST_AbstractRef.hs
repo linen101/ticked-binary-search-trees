@@ -56,7 +56,7 @@ set (Node k v l r) k' v'
     | otherwise =  Node k' v' l r
 
 {-@ reflect get @-}
-{-@ get :: (Ord k) =>  t: BST k v -> k:k -> Maybe v @-}
+{-@ get :: Ord k => t: BST k v -> k:k -> Maybe v @-}
 get Nil k    = Nothing
 get (Node k v l r) k'
     | k' < k    = get l k'

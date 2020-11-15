@@ -5,14 +5,15 @@ module BSTTick (Tree(..), Maybe(..), height, size, set, get) where
 import RTick
 import ProofCombinators
 import Functions_Types (max, min, Nat, Maybe(..))
-import Prelude hiding (Maybe(..), max, min, pure, return)
+import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min)
+
 
 
 -------------------------------------------------------------------------------
 -- | Datatype:
 -------------------------------------------------------------------------------
 
-{-@ type NETree k v= {t: Tree k v | 0 < size t} @-}
+{-@ type NETree k v = {t: Tree k v | 0 < size t} @-}
 
 {-@ data Tree k v <l :: root:k -> x:k -> Bool, r :: root:k -> x:k -> Bool>
         = Nil
@@ -85,9 +86,9 @@ set' (Node k v l r) k' v'
     | otherwise = wait (Node k v' l r)
 
 {-@ reflect get @-}
-{-@ get :: (Ord k) =>  k:k -> ts: BST k v ->
-         { t:Tick (Maybe v) | tcost t <= height ts} @-}
-get :: (Ord k) => k -> Tree k v ->  Tick (Maybe v)
+{-@ get :: Ord k => k:k -> ts: BST k v ->
+         { t:Tick (Maybe v) | tcost t <= height ts } @-}
+get :: Ord k => k -> Tree k v -> Tick (Maybe v)
 get _ Nil    = pure Nothing
 get key (Node k v l r)
     | key < k    = step 1 (get key l)
