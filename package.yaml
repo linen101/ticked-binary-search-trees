@@ -1,0 +1,15 @@
+name:                tick-fun-ds
+version:             0.1.0.0
+github:              "githubuser/bst-tick"
+license:             BSD3
+author:              "Chrysa Oikonomou"
+maintainer:          "linen@protonmail.com"
+copyright:           "2020 Chrysa Oikonomou"
+
+library:
+  source-dirs: src
+  dependencies:
+  - liquid-base
+  - liquid-prelude >=0.8.10
+  - liquidhaskell >=0.8.10
+  ghc-options: -fplugin=LiquidHaskell

@@ -35,6 +35,7 @@ dist-newstyle
 cabal.sandbox.config
 .ghc.environment.*
 cabal.project.local
+.stack-work/
 
 TAGS
 tags*
