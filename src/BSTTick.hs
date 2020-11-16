@@ -187,7 +187,7 @@ test2 = tcost (set t 40 's') <= height t
 
 {-@ t' :: BST Int [Char] @-}
 t' :: Tree Int [Char]
-t' = tval (set (tval (set (tval (set Nil 10 "kitty")) 20 "kitten")) 30 "cat")
+t' = tval (set (tval (set (tval (set Nil 10 "kitty")) 20 "cat")) 30 "kitten")
 
 {-@ test1' :: TT @-}
 test1' :: Bool
