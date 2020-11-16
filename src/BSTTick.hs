@@ -182,19 +182,18 @@ test1 = tcost (get 10 t) <= height t
 test2 :: Bool
 test2 = tcost (set t 40 's') <= height t
 
-{- This does not work, let's figure out why!!!
-   Cannot unify [Char] with GHC.Base.String
+-- This does not work, let's figure out why!!!
+  -- Cannot unify [Char] with GHC.Base.String
 
-{-@ t :: BST Int String @-}
-t :: Tree Int String
-t = tval (set (tval (set (tval (set Nil 10 "cat")) 20 "dog")) 30 "zebra")
+{-@ t' :: BST Int [Char] @-}
+t' :: Tree Int [Char]
+t' = tval (set (tval (set (tval (set Nil 10 "kitty")) 20 "kitten")) 30 "cat")
 
-{-@ test1 :: TT @-}
-test1 :: Bool
-test1 = tcost (get 10 t) <= height t
+{-@ test1' :: TT @-}
+test1' :: Bool
+test1' = tcost (get 10 t') <= height t'
 
-{-@ test2 :: TT @-}
-test2 :: Bool
-test2 = tcost (set t 40 "squirrel") <= height t
+{-@ test2' :: TT @-}
+test2' :: Bool
+test2' = tcost (set t' 40 "gato") <= height t'
 
--}
