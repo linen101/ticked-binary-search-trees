@@ -1,9 +1,11 @@
 {-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple-local"  @-}
+
 
 module BSTTick (Tree(..), Maybe(..), height, size, set, get) where
 
 import Functions_Types (max, min, Nat, Maybe(..))
-import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min)
+import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, fmap)
 
 import Language.Haskell.Liquid.RTick
 import Language.Haskell.Liquid.RTick.Combinators
@@ -24,8 +26,10 @@ import Language.Haskell.Liquid.RTick.Combinators
 data Tree k v = Nil | Node k v (Tree k v) (Tree k v) deriving Show
 
 {-@ type BST k v = Tree <{\root k -> k < root}, {\root k -> k > root}> k v @-}
+
 {-@ type NETree k v = {t: Tree k v | 0 < size t} @-}
 
+{-@ type NEBST k v = {t: BST k v | 0 < size t } @-}
 
 -------------------------------------------------------------------------------
 -- | Measures:
@@ -49,6 +53,11 @@ height (Node k v l r) = 1 + max (height l) (height r)
 -------------------------------------------------------------------------------
 -- | Functions:
 -------------------------------------------------------------------------------
+
+{-@ reflect isEmpty @-}
+isEmpty :: Tree k v -> Bool
+isEmpty Nil = True
+isEmpty _   = False
 
 {-@ reflect empty @-}
 {-@ empty :: { t:Tick { ts:(BST k v) | size ts == 0 } | tcost t == 0 } @-}
@@ -78,15 +87,46 @@ set (Node k v l r) k' v'
          { t:Tick (Maybe v) | tcost t <= height ts } @-}
 get :: Ord k => k -> Tree k v -> Tick (Maybe v)
 get _ Nil    = pure Nothing
-get key (Node k v l r)
-    | key < k    = step 1 (get key l)
-    | key > k    = step 1 (get key r)
+get k' (Node k v l r)
+    | k' < k     = step 1 (get k' l)
+    | k' > k     = step 1 (get k' r)
     | otherwise  = wait (Just v)
 
+{-@ reflect delete @-}
+{-@ delete :: Ord k => k:k -> ts:BST k v ->
+              { t:Tick { ts':(Tree k v)
+                        | size ts' == size ts - 1 || size ts' == size ts }
+              | tcost t <= height ts } @-}
+delete :: Ord k => k -> Tree k v -> Tick (Tree k v)
+delete _ Nil = pure Nil
+delete k' t@(Node k v l r) 
+    | k' < k    = pure (\l' -> Node k v l' r) </> (delete k' l)
+    | k' > k    = pure (\r' -> Node k v l r') </> (delete k' r)
+    | otherwise = (deleteI t)
+
+{-@ reflect deleteI @-}
+{-@ deleteI :: Ord k => ts: NEBST k v -> 
+               { t:Tick { ts':(Tree k v)
+                        | size ts' == size ts - 1  }
+               | tcost t <= height ts } @-}
+deleteI :: Ord k => Tree k v -> Tick (Tree k v)
+deleteI (Node _ _ Nil Nil) = pure Nil
+deleteI (Node _ _ l Nil)   = pure l
+deleteI (Node _ _ Nil r)   = pure r
+deleteI (Node _ _ l r)     = pure ( \(k, v, r') -> (Node k v l r' ) ) </> delMinKey r
+
+{-@ reflect delMinKey @-}
+{-@ delMinKey :: Ord k => ts:NEBST k v -> 
+            { t:Tick (k,v, {ts': BST k v | size ts' == size ts - 1} ) 
+            | tcost t <= height ts } @-}
+delMinKey :: Ord k => Tree k v -> Tick (k,v, Tree k v)
+delMinKey (Node k v Nil r) = pure (k, v, r)
+delMinKey (Node k v l r)   = wmap  ( \(k', v', l') -> (k', v', Node k v l' r ) ) (delMinKey l)
 
 -------------------------------------------------------------------------------
 -- | Extrinsic cost proofs:
 -------------------------------------------------------------------------------
+
 
 {-@ getCost :: Ord k => key:k -> b:BST k v ->
                { tcost (get key b) <= height b }
@@ -125,7 +165,6 @@ getCost key b@(Node k v l r) | key > k
    <=. 1 + height r
    <=. height b
    *** QED
-
 
 {-@ setCost :: Ord k => key:k -> val:v -> b:BST k v ->
                { tcost (set b key val) <= height b }
@@ -166,6 +205,100 @@ setCost key val b@(Node k v l r) | key > k
     <=. height b
     *** QED
 
+{-@ ple delMinKeyCost @-}
+
+{-@ delMinKeyCost :: Ord k => b:NEBST k v ->
+               { tcost (delMinKey b) <= height b }
+               / [height b] @-}
+delMinKeyCost :: Ord k => Tree k v -> Proof
+delMinKeyCost b@(Node k v Nil r)
+    =   tcost (delMinKey b)
+    ==. tcost (pure (k, v, r))
+    ==. 0 
+    <=. height b
+    *** QED
+
+delMinKeyCost b@(Node k v l r)
+    =   tcost (delMinKey b)
+    ==. tcost (wmap  ( \(k', v', l') -> (k', v', Node k v l' r ) ) (delMinKey l))
+    ==. 1 + tcost (delMinKey l)
+        ? delMinKeyCost l
+    <=. 1 + height l
+    <=. height b
+    *** QED     
+
+{-@ ple deleteICost @-}
+
+{-@ deleteICost :: Ord k => b:NEBST k v ->
+               { tcost (deleteI b) <= height b }
+               / [height b] @-}
+deleteICost :: Ord k => Tree k v -> Proof
+deleteICost b@(Node _ _ Nil Nil) 
+    = tcost (deleteI b)
+    ==. tcost (pure Nil)
+    ==. 0
+    <=. height b
+    *** QED
+
+deleteICost b@(Node _ _ l Nil) 
+    = tcost (deleteI b)
+    ==. tcost (pure l)
+    ==. 0
+    <=. height b
+    *** QED
+
+deleteICost b@(Node _ _ Nil r) 
+    = tcost (deleteI b)
+    ==. tcost (pure r)
+    ==. 0
+    <=. height b
+    *** QED
+
+deleteICost b@(Node _ _ l r) 
+    = tcost (deleteI b)
+    ==. tcost (pure ( \(k, v, r') -> (Node k v l r' ) ) </> delMinKey r)
+    ==. 1 + tcost (delMinKey r)
+       ? delMinKeyCost r
+    <=. 1 + height r
+    <=. height b
+    *** QED
+
+{-@ deleteCost :: Ord k => key:k -> b:BST k v ->
+               { tcost (delete key b) <= height b }
+               / [height b] @-}
+deleteCost :: Ord k => k -> Tree k v -> Proof
+deleteCost key b@(Nil)
+    =   tcost (delete key b)
+    ==. tcost (pure Nil)
+    ==. 0
+    ==. height b
+    <=. height b
+    *** QED
+
+deleteCost key b@(Node k v l r) | key == k
+    =   tcost (delete key b)
+    ==. tcost (deleteI b)
+       ? deleteICost b
+    <=. height b
+    *** QED
+
+deleteCost key b@(Node k v l r) | key < k
+    =   tcost (delete key b)
+    ==. tcost (pure (\l' -> Node k v l' r) </> (delete key l))
+    ==. 1 + tcost (delete key l)
+        ? deleteCost key l
+    <=. 1 + height l
+    <=. height b
+    *** QED
+
+deleteCost key b@(Node k v l r) | key > k
+    =   tcost (delete key b)
+    ==. tcost (pure (\r' -> Node k v l r') </> (delete key r))
+    ==. 1 + tcost (delete key r)
+        ? deleteCost key r
+    <=. 1 + height r
+    <=. height b
+    *** QED
 
 -------------------------------------------------------------------------------
 -- | An example BST
