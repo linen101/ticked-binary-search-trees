@@ -170,14 +170,17 @@ delMinKey1 (Node k v l r)   = pure f </> delMinKey1 l
 -- | delMinKey2 using abstract refinement on function type:
 -------------------------------------------------------------------------------  
 
+{-@ reflect delMinKey2 @-}
 {-@ delMinKey2 :: Ord k => ts:NEBST k v ->
             { t:Tick (k, v, {ts':(BST k v) | size ts' == size ts - 1})
-                     < \_ -> {v:v | true}, \_ -> {b:Tree k v | true}, \x -> {t:Tree {k:k | x < k} v | true} >
+                     < \_ -> {v:v | true}
+                     , \_ -> {b:Tree k v | true} 
+                     , \x -> {t:Tree {k:k | x < k} v | true} >
             | tcost t <= height ts } @-}
 delMinKey2 :: Ord k => Tree k v -> Tick (k, v, Tree k v)
 delMinKey2 (Node k v Nil r) = pure (k, v, r)
-delMinKey2 (Node k v l r)   = pure f </> delMinKey2 l
-  where f (k', v', l') = (k', v', (Node k v l' r))
+delMinKey2 (Node k v l r)   = pure (\(k', v', l') -> (k', v', Node k v l' r)) </> delMinKey2 l
+
 
 
 -------------------------------------------------------------------------------
