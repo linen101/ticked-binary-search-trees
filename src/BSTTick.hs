@@ -171,13 +171,13 @@ delMinKey1 (Node k v l r)   = pure f </> delMinKey1 l
 -------------------------------------------------------------------------------  
 
 {-@ delMinKey2 :: Ord k => ts:NEBST k v ->
-            { t:Tick (k, {ts':(BST k v) | size ts' == size ts - 1}, v)
-                     < \x -> {t:Tree {k:k | x < k} v | true} >
+            { t:Tick (k, v, {ts':(BST k v) | size ts' == size ts - 1})
+                     < \_ -> {v:v | true}, \_ -> {b:Tree k v | true}, \x -> {t:Tree {k:k | x < k} v | true} >
             | tcost t <= height ts } @-}
-delMinKey2 :: Ord k => Tree k v -> Tick (k, Tree k v, v)
-delMinKey2 (Node k v Nil r) = pure (k, r, v)
+delMinKey2 :: Ord k => Tree k v -> Tick (k, v, Tree k v)
+delMinKey2 (Node k v Nil r) = pure (k, v, r)
 delMinKey2 (Node k v l r)   = pure f </> delMinKey2 l
-  where f (k', l', v') = (k',(Node k v l' r), v')
+  where f (k', v', l') = (k', v', (Node k v l' r))
 
 
 -------------------------------------------------------------------------------
