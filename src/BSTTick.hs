@@ -5,7 +5,7 @@
 module BSTTick (Tree(..), Maybe(..), height, size, set, get) where
 
 import Functions_Types (max, min, Nat, Maybe(..))
-import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, fmap)
+import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min)
 
 import Language.Haskell.Liquid.RTick
 import Language.Haskell.Liquid.RTick.Combinators
@@ -30,6 +30,7 @@ data Tree k v = Nil | Node k v (Tree k v) (Tree k v) deriving Show
 {-@ type NETree k v = {t: Tree k v | 0 < size t} @-}
 
 {-@ type NEBST k v = {t: BST k v | 0 < size t } @-}
+
 
 -------------------------------------------------------------------------------
 -- | Measures:
@@ -94,39 +95,94 @@ get k' (Node k v l r)
 
 {-@ reflect delete @-}
 {-@ delete :: Ord k => k:k -> ts:BST k v ->
-              { t:Tick { ts':(Tree k v)
-                        | size ts' == size ts - 1 || size ts' == size ts }
+              { t:Tick { ts':(BST k v)
+                       | size ts' == size ts - 1 || size ts' == size ts }
               | tcost t <= height ts } @-}
 delete :: Ord k => k -> Tree k v -> Tick (Tree k v)
 delete _ Nil = pure Nil
-delete k' t@(Node k v l r) 
+delete k' t@(Node k v l r)
     | k' < k    = pure (\l' -> Node k v l' r) </> (delete k' l)
     | k' > k    = pure (\r' -> Node k v l r') </> (delete k' r)
     | otherwise = (deleteI t)
 
 {-@ reflect deleteI @-}
-{-@ deleteI :: Ord k => ts: NEBST k v -> 
-               { t:Tick { ts':(Tree k v)
+{-@ deleteI :: Ord k => ts: NEBST k v ->
+               { t:Tick { ts':(BST k v)
                         | size ts' == size ts - 1  }
                | tcost t <= height ts } @-}
 deleteI :: Ord k => Tree k v -> Tick (Tree k v)
 deleteI (Node _ _ Nil Nil) = pure Nil
 deleteI (Node _ _ l Nil)   = pure l
 deleteI (Node _ _ Nil r)   = pure r
-deleteI (Node _ _ l r)     = pure ( \(k, v, r') -> (Node k v l r' ) ) </> delMinKey r
+deleteI (Node _ _ l r)     = pure f </> delMinKey r
+  where f (MinKey k v r') = Node k v l r'
+
+------------------------------------------------------------------------------
+-- | delMinKey using user defined datatype MinKey:
+-------------------------------------------------------------------------------  
+
+{-@ data MinKey k v = MinKey { mkv_key  :: k
+                             , mkv_val  :: v
+                             , mkv_tree :: BST {x:k | mkv_key < x} v }
+@-}
+data MinKey k v = MinKey { mkv_key :: k
+                         , mkv_val :: v
+                         , mkv_tree :: Tree k v }
 
 {-@ reflect delMinKey @-}
-{-@ delMinKey :: Ord k => ts:NEBST k v -> 
-            { t:Tick (k,v, {ts': BST k v | size ts' == size ts - 1} ) 
+{-@ delMinKey :: Ord k => ts:NEBST k v ->
+            { t:Tick { m:(MinKey k v) | size (mkv_tree m) == size ts - 1 }
             | tcost t <= height ts } @-}
-delMinKey :: Ord k => Tree k v -> Tick (k,v, Tree k v)
-delMinKey (Node k v Nil r) = pure (k, v, r)
-delMinKey (Node k v l r)   = wmap  ( \(k', v', l') -> (k', v', Node k v l' r ) ) (delMinKey l)
+delMinKey :: Ord k => Tree k v -> Tick (MinKey k v)
+delMinKey (Node k v Nil r) = pure (MinKey k v r)
+delMinKey (Node k v l r)   = pure f </> delMinKey l
+  where f (MinKey k' v' l') = MinKey k' v' (Node k v l' r)
+
+
+------------------------------------------------------------------------------
+-- | delMinKey1 using user defined Ordered Tuple with abstract refinements:
+-------------------------------------------------------------------------------  
+
+{-@ data Triple k v <p :: mink:k -> x:k -> Bool> 
+        = Triple { t_k :: k
+                 , t_v :: v
+                 , t_b :: BST k<p t_k> v
+                 }
+@-}
+
+data Triple k v = Triple { t_k :: k
+                         , t_v :: v
+                         , t_b :: Tree k v 
+                         } 
+
+{-@ type OTriple = Triple <{\mink x -> mink < x}> k v @-}                       
+
+{-@ reflect delMinKey1 @-}
+{-@ delMinKey1 :: Ord k => ts:NEBST k v ->
+            { t:Tick { o: OTriple | size (t_b o) == size ts - 1 }
+            | tcost t <= height ts } @-}
+delMinKey1 :: Ord k => Tree k v -> Tick (Triple k v)
+delMinKey1 (Node k v Nil r) = pure (Triple k v r)
+delMinKey1 (Node k v l r)   = pure f </> delMinKey1 l
+  where f (Triple k' v' l') = Triple k' v' (Node k v l' r)
+
+------------------------------------------------------------------------------
+-- | delMinKey2 using abstract refinement on function type:
+-------------------------------------------------------------------------------  
+
+{-@ delMinKey2 :: Ord k => ts:NEBST k v ->
+            { t:Tick (k, {ts':(BST k v) | size ts' == size ts - 1}, v)
+                     < \x -> {t:Tree {k:k | x < k} v | true} >
+            | tcost t <= height ts } @-}
+delMinKey2 :: Ord k => Tree k v -> Tick (k, Tree k v, v)
+delMinKey2 (Node k v Nil r) = pure (k, r, v)
+delMinKey2 (Node k v l r)   = pure f </> delMinKey2 l
+  where f (k', l', v') = (k',(Node k v l' r), v')
+
 
 -------------------------------------------------------------------------------
 -- | Extrinsic cost proofs:
 -------------------------------------------------------------------------------
-
 
 {-@ getCost :: Ord k => key:k -> b:BST k v ->
                { tcost (get key b) <= height b }
@@ -213,19 +269,20 @@ setCost key val b@(Node k v l r) | key > k
 delMinKeyCost :: Ord k => Tree k v -> Proof
 delMinKeyCost b@(Node k v Nil r)
     =   tcost (delMinKey b)
-    ==. tcost (pure (k, v, r))
-    ==. 0 
+    ==. tcost (pure (MinKey k v r))
+    ==. 0
     <=. height b
     *** QED
 
 delMinKeyCost b@(Node k v l r)
     =   tcost (delMinKey b)
-    ==. tcost (wmap  ( \(k', v', l') -> (k', v', Node k v l' r ) ) (delMinKey l))
+    ==. tcost (pure f </> delMinKey l)
     ==. 1 + tcost (delMinKey l)
         ? delMinKeyCost l
     <=. 1 + height l
     <=. height b
-    *** QED     
+    *** QED
+  where f (MinKey k' v' l') = MinKey k' v' (Node k v l' r)
 
 {-@ ple deleteICost @-}
 
@@ -233,35 +290,36 @@ delMinKeyCost b@(Node k v l r)
                { tcost (deleteI b) <= height b }
                / [height b] @-}
 deleteICost :: Ord k => Tree k v -> Proof
-deleteICost b@(Node _ _ Nil Nil) 
+deleteICost b@(Node _ _ Nil Nil)
     = tcost (deleteI b)
     ==. tcost (pure Nil)
     ==. 0
     <=. height b
     *** QED
 
-deleteICost b@(Node _ _ l Nil) 
+deleteICost b@(Node _ _ l Nil)
     = tcost (deleteI b)
     ==. tcost (pure l)
     ==. 0
     <=. height b
     *** QED
 
-deleteICost b@(Node _ _ Nil r) 
+deleteICost b@(Node _ _ Nil r)
     = tcost (deleteI b)
     ==. tcost (pure r)
     ==. 0
     <=. height b
     *** QED
 
-deleteICost b@(Node _ _ l r) 
+deleteICost b@(Node _ _ l r)
     = tcost (deleteI b)
-    ==. tcost (pure ( \(k, v, r') -> (Node k v l r' ) ) </> delMinKey r)
+    ==. tcost (pure f </> delMinKey r)
     ==. 1 + tcost (delMinKey r)
        ? delMinKeyCost r
     <=. 1 + height r
     <=. height b
     *** QED
+  where f (MinKey k v r') = Node k v l r'
 
 {-@ deleteCost :: Ord k => key:k -> b:BST k v ->
                { tcost (delete key b) <= height b }
@@ -284,7 +342,7 @@ deleteCost key b@(Node k v l r) | key == k
 
 deleteCost key b@(Node k v l r) | key < k
     =   tcost (delete key b)
-    ==. tcost (pure (\l' -> Node k v l' r) </> (delete key l))
+    ==. tcost (pure (\l' -> Node k v l' r) </> delete key l)
     ==. 1 + tcost (delete key l)
         ? deleteCost key l
     <=. 1 + height l
@@ -293,7 +351,7 @@ deleteCost key b@(Node k v l r) | key < k
 
 deleteCost key b@(Node k v l r) | key > k
     =   tcost (delete key b)
-    ==. tcost (pure (\r' -> Node k v l r') </> (delete key r))
+    ==. tcost (pure (\r' -> Node k v l r') </> delete key r)
     ==. 1 + tcost (delete key r)
         ? deleteCost key r
     <=. 1 + height r
@@ -303,6 +361,7 @@ deleteCost key b@(Node k v l r) | key > k
 -------------------------------------------------------------------------------
 -- | An example BST
 -------------------------------------------------------------------------------
+
 {-@ t :: BST Int Char @-}
 t :: Tree Int Char
 t = tval (set (tval (set (tval (set Nil 10 'c')) 20 'd')) 30 'z')
@@ -315,8 +374,8 @@ test1 = tcost (get 10 t) <= height t
 test2 :: Bool
 test2 = tcost (set t 40 's') <= height t
 
--- This does not work, let's figure out why!!!
-  -- Cannot unify [Char] with GHC.Base.String
+--- Using String does not work, let's figure out why!!!
+--- Cannot unify [Char] with GHC.Base.String
 
 {-@ t' :: BST Int [Char] @-}
 t' :: Tree Int [Char]
@@ -329,4 +388,3 @@ test1' = tcost (get 10 t') <= height t'
 {-@ test2' :: TT @-}
 test2' :: Bool
 test2' = tcost (set t' 40 "gato") <= height t'
-
