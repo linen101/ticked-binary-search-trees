@@ -114,8 +114,8 @@ deleteI :: Ord k => Tree k v -> Tick (Tree k v)
 deleteI (Node _ _ Nil Nil) = pure Nil
 deleteI (Node _ _ l Nil)   = pure l
 deleteI (Node _ _ Nil r)   = pure r
-deleteI (Node _ _ l r)     = pure f </> delMinKey r
-  where f (MinKey k v r') = Node k v l r'
+deleteI (Node _ _ l r)     = pure f </> delMinKey2 r
+  where f (v, k, r') = Node k v l r'
 
 ------------------------------------------------------------------------------
 -- | delMinKey using user defined datatype MinKey:
@@ -172,16 +172,13 @@ delMinKey1 (Node k v l r)   = pure f </> delMinKey1 l
 
 {-@ reflect delMinKey2 @-}
 {-@ delMinKey2 :: Ord k => ts:NEBST k v ->
-            { t:Tick (k, v, {ts':(BST k v) | size ts' == size ts - 1})
-                     < \_ -> {v:v | true}
-                     , \_ -> {b:Tree k v | true} 
-                     , \x -> {t:Tree {k:k | x < k} v | true} >
+            { t:Tick (v, k, {ts':(BST k v) | size ts' == size ts - 1})
+                     < \_ -> {k:k | true}
+                     , \key -> {t:Tree {k:k | key < k} v | true} >
             | tcost t <= height ts } @-}
-delMinKey2 :: Ord k => Tree k v -> Tick (k, v, Tree k v)
-delMinKey2 (Node k v Nil r) = pure (k, v, r)
-delMinKey2 (Node k v l r)   = pure (\(k', v', l') -> (k', v', Node k v l' r)) </> delMinKey2 l
-
-
+delMinKey2 :: Ord k => Tree k v -> Tick (v, k, Tree k v)
+delMinKey2 (Node k v Nil r) = pure (v, k, r)
+delMinKey2 (Node k v l r)   = pure (\(v', k', l') -> (v', k', Node k v l' r)) </> delMinKey2 l
 
 -------------------------------------------------------------------------------
 -- | Extrinsic cost proofs:
@@ -271,21 +268,20 @@ setCost key val b@(Node k v l r) | key > k
                / [height b] @-}
 delMinKeyCost :: Ord k => Tree k v -> Proof
 delMinKeyCost b@(Node k v Nil r)
-    =   tcost (delMinKey b)
-    ==. tcost (pure (MinKey k v r))
+    =   tcost (delMinKey2 b)
+    ==. tcost (pure (v, k, r))
     ==. 0
     <=. height b
     *** QED
 
 delMinKeyCost b@(Node k v l r)
-    =   tcost (delMinKey b)
-    ==. tcost (pure f </> delMinKey l)
-    ==. 1 + tcost (delMinKey l)
+    =   tcost (delMinKey2 b)
+    ==. tcost (pure (\(v', k', l') -> (v', k', Node k v l' r)) </> delMinKey2 l)
+    ==. 1 + tcost (delMinKey2 l)
         ? delMinKeyCost l
     <=. 1 + height l
     <=. height b
     *** QED
-  where f (MinKey k' v' l') = MinKey k' v' (Node k v l' r)
 
 {-@ ple deleteICost @-}
 
@@ -316,13 +312,13 @@ deleteICost b@(Node _ _ Nil r)
 
 deleteICost b@(Node _ _ l r)
     = tcost (deleteI b)
-    ==. tcost (pure f </> delMinKey r)
-    ==. 1 + tcost (delMinKey r)
+    ==. tcost (pure f </> delMinKey2 r)
+    ==. 1 + tcost (delMinKey2 r)
        ? delMinKeyCost r
     <=. 1 + height r
     <=. height b
     *** QED
-  where f (MinKey k v r') = Node k v l r'
+  where f (v, k, r') = Node k v l r'
 
 {-@ deleteCost :: Ord k => key:k -> b:BST k v ->
                { tcost (delete key b) <= height b }
