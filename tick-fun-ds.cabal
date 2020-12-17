@@ -24,6 +24,7 @@ library
   exposed-modules:
       BSTTick
       Functions_Types
+      RBTree
   other-modules:
       Paths_tick_fun_ds
   hs-source-dirs:
