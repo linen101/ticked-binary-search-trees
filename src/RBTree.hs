@@ -38,6 +38,33 @@ height (Node _ _ _ l r) = 1 + max (height l) (height r)
 {-@ invariant {t:Tree k v | 0 <= height t} @-}
 
 
+--  check if root is black  --
+
+{-@ measure isB @-}
+{-@ isB :: Tree k v -> Bool @-}
+isB :: Tree k v -> Bool  
+isB Nil = True
+isB (Node c _ _ _ _) = c == B
+
+--  black height of tree  --
+-- blackh only considers the left sub-tree, 
+-- but this is legitimate, because isBH will ensure the
+-- right subtree has the same blackh.
+
+{-@ measure blackh @-}
+{-@ blackh :: Tree k v -> Nat @-}
+blackh :: Tree k v -> Int 
+blackh Nil = 0
+blackh (Node c _ _ l r) = blackh l + if c == B then 1 else 0
+
+-- `black height invariant `--
+{-@ measure isBH @-}
+{-@ isBH :: Tree k v -> Bool @-}
+isBH :: Tree k v -> Bool
+isBH Nil = True
+isBH (Node c _ _ l r) = blackh l == blackh r
+                     && isBH l 
+                     && isBH r
 
 -------------------------------------------------------------------------------
 -- | Datatypes:
@@ -54,33 +81,43 @@ height (Node _ _ _ l r) = 1 + max (height l) (height r)
 
 --      Ordered Trees       --
 
-{-@ type ORBT k v = Tree <{\root k -> k < root}, {\root k -> k > root}> k v @-}                           
+{-@ type ORBT k v = Tree <{\root k -> k < root}, {\root k -> k > root}> k v @-} 
+
+{-@ type RBT k v = {t:ORBT k v | isBH t} @-}
+
+{-@ type RBTN k v N = {t:RBT k v | (blackh t) = N} @-}                          
 
 -------------------------------------------------------------------------------
 -- | Functions:
 -------------------------------------------------------------------------------
 
-{-@ makeBlack :: ORBT k v -> ORBT k v @-}
+{-@ makeBlack :: RBT k v -> RBT k v @-}
 makeBlack :: Tree k v -> Tree k v
 makeBlack Nil = Nil
 makeBlack (Node _ k v l r) = Node B k v l r
 
-{-@ set :: k -> v -> ORBT k v -> ORBT k v @-}
+{-@ set :: k -> v -> RBT k v -> RBT k v @-}
 set k v t = makeBlack (insert k v t)
 
 
-{-@ insert :: Ord k => k -> v -> ORBT k v -> ORBT k v @-}
-insert k v Nil = Node B k v Nil Nil
-insert k v t@(Node c key val l r)
-    | k < key   = balanceL c key val (insert k v l) r
-    | k > key   = balanceR c key val l (insert k v r)
+{-@ insert :: Ord k => k -> v -> t: RBT k v -> RBTN k v {(blackh t)} @-}
+insert k v Nil = Node R k v Nil Nil
+insert k v t@(Node B key val l r)
+    | k < key   = balanceL B key val (insert k v l) r
+    | k > key   = balanceR B key val l (insert k v r)
+    | otherwise = t
+insert k v t@(Node R key val l r)
+    | k < key   = Node R key val (insert k v l) r
+    | k > key   = Node R key val l (insert k v r)
     | otherwise = t
 
-{-@ balanceL :: Color -> k:k -> v -> ORBT {key:k | key < k} v -> ORBT {key:k | key > k} v -> ORBT k v @-}
-balanceL B z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceL c k v l r = Node c k v l r
 
-{-@ balanceR :: Color -> k:k -> v -> ORBT {key:k | key < k} v -> ORBT {key:k | key > k} v -> ORBT k v @-}
-balanceR B y yv (Node R x xv a b) (Node R z zv c d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceR col y yv x (Node R z zv c d) = Node col z zv (Node R y yv x c) d
-balanceR col x xv a b = Node col x xv a b
+{-@ balanceL :: Color -> k:k -> v -> l:RBT {key:k | key < k} v -> RBTN {key:k | key > k} v {(blackh l)} -> RBTN k v {1+ (blackh l)} @-}
+balanceL B z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceL B z zv (Node R x xv a (Node R y yv b c)) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceL c k v l r = Node B k v l r
+
+{-@ balanceR :: Color -> k:k -> v -> l:RBT {key:k | key < k} v -> RBTN {key:k | key > k} v {(blackh l)} -> RBTN k v {1+ (blackh l)} @-}
+balanceR B x xv a (Node R y yv b (Node R z zv c d)) = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceR B x xv a (Node R z zv (Node R y yv b c) d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceR c x xv a b = Node B x xv a b
