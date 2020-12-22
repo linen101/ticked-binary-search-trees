@@ -66,6 +66,14 @@ isBH (Node c _ _ l r) = blackh l == blackh r
                      && isBH l 
                      && isBH r
 
+--    color invariant   --
+
+{-@ measure isAlmostRB @-}
+{-@ isAlmostRB :: Tree k v -> Bool @-}
+isAlmostRB :: Tree k v -> Bool
+isAlmostRB Nil = True
+isAlmostRB (Node c _ _ l r) = isAlmostRB l && isAlmostRB r
+
 -------------------------------------------------------------------------------
 -- | Datatypes:
 -------------------------------------------------------------------------------
@@ -83,7 +91,9 @@ isBH (Node c _ _ l r) = blackh l == blackh r
 
 {-@ type ORBT k v = Tree <{\root k -> k < root}, {\root k -> k > root}> k v @-} 
 
-{-@ type RBT k v = {t:ORBT k v | isBH t} @-}
+--      Red-Black Trees     --
+
+{-@ type RBT k v = {t:ORBT k v | isBH t && isAlmostRB t} @-}
 
 {-@ type RBTN k v N = {t:RBT k v | (blackh t) = N} @-}                          
 
@@ -103,8 +113,8 @@ set k v t = makeBlack (insert k v t)
 {-@ insert :: Ord k => k -> v -> t: RBT k v -> RBTN k v {(blackh t)} @-}
 insert k v Nil = Node R k v Nil Nil
 insert k v t@(Node B key val l r)
-    | k < key   = balanceL B key val (insert k v l) r
-    | k > key   = balanceR B key val l (insert k v r)
+    | k < key   = balanceL key val (insert k v l) r
+    | k > key   = balanceR key val l (insert k v r)
     | otherwise = t
 insert k v t@(Node R key val l r)
     | k < key   = Node R key val (insert k v l) r
@@ -112,12 +122,12 @@ insert k v t@(Node R key val l r)
     | otherwise = t
 
 
-{-@ balanceL :: Color -> k:k -> v -> l:RBT {key:k | key < k} v -> RBTN {key:k | key > k} v {(blackh l)} -> RBTN k v {1+ (blackh l)} @-}
-balanceL B z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceL B z zv (Node R x xv a (Node R y yv b c)) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceL c k v l r = Node B k v l r
+{-@ balanceL ::  k:k -> v -> l:RBT {key:k | key < k} v -> RBTN {key:k | key > k} v {(blackh l)} -> RBTN k v {1+ (blackh l)} @-}
+balanceL z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceL z zv (Node R x xv a (Node R y yv b c)) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceL k v l r = Node B k v l r
 
-{-@ balanceR :: Color -> k:k -> v -> l:RBT {key:k | key < k} v -> RBTN {key:k | key > k} v {(blackh l)} -> RBTN k v {1+ (blackh l)} @-}
-balanceR B x xv a (Node R y yv b (Node R z zv c d)) = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceR B x xv a (Node R z zv (Node R y yv b c) d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceR c x xv a b = Node B x xv a b
+{-@ balanceR :: k:k -> v -> l:RBT {key:k | key < k} v -> RBTN {key:k | key > k} v {(blackh l)} -> RBTN k v {1+ (blackh l)} @-}
+balanceR x xv a (Node R y yv b (Node R z zv c d)) = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceR x xv a (Node R z zv (Node R y yv b c) d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceR x xv a b = Node B x xv a b
