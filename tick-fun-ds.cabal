@@ -25,6 +25,7 @@ library
       BSTTick
       Functions_Types
       RBTree
+      Log2
   other-modules:
       Paths_tick_fun_ds
   hs-source-dirs:
