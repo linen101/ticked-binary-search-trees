@@ -1,13 +1,21 @@
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple-local"  @-}
 
 module RBTree where
 
 import Functions_Types (max, min, Nat, Maybe(..))
-import Prelude hiding (max,min)
+import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min)
+import Log2
+
+import Language.Haskell.Liquid.RTick
+import Language.Haskell.Liquid.RTick.Combinators
 
 data RBTree k v = Nil | Node Color k v !(RBTree k v) !(RBTree k v) deriving (Show)
 
 data Color = B | R deriving (Eq,Show)
+
+
 
 
 ---------------------------------------------------------------------------
@@ -48,7 +56,7 @@ data Color = B | R deriving (Eq,Show)
 {-@ measure size @-}
 {-@ size :: RBTree k v -> Nat @-}
 size :: RBTree k v -> Int
-size Nil             = 0
+size Nil              = 0
 size (Node _ _ _ l r) = 1 + size l + size r
 {-@ invariant {t:Tree k v | 0 <= size t} @-}
 
@@ -61,12 +69,22 @@ height Nil              = 0
 height (Node _ _ _ l r) = 1 + max (height l) (height r)
 {-@ invariant {t:Tree k v | 0 <= height t} @-}
 
+{-@ measure left   @-}
+{-@ left :: {t:RBTree k v | size t >0 } -> RBTree k v @-}        
+left :: RBTree k v -> RBTree k v
+left (Node c k v l r) = l
+
+{-@ measure right   @-}
+{-@ right :: {t:RBTree k v | size t >0 } -> RBTree k v @-}        
+right :: RBTree k v -> RBTree k v
+right (Node c k v l r) = r
+
 
 --  check if root is black  --
 
 {-@ measure isB @-}       
 {-@ isB :: RBTree k v -> Bool @-}
-isB (Nil)         = False               --True or False doesnt matter wtf
+isB (Nil)            = False               --True or False doesnt matter wtf
 isB (Node c k v l r) = c == B
 
 --  black height of tree  --
@@ -75,18 +93,18 @@ isB (Node c k v l r) = c == B
 -- right subtree has the same blackh.
 
 {-@ measure bh    @-}
-{-@ bh :: RBTree k v -> Int @-}      -- here i had Nat - NOO 0 IS NOT NAT
+{-@ bh :: t:RBTree k v -> Int @-}      
 bh :: RBTree k v -> Int
-bh (Nil)         = 0
+bh (Nil)            = 0
 bh (Node c k v l r) = bh l + if (c == R) then 0 else 1
-{-@ invariant {t:RBTree k v | 0 <= bh t} @-}
+{-@ invariant {t:RBTree k v | 0 <= bh t && bh (left t) >= bh t - 1} @-}
 
 
 -- `black height invariant `--
 {-@ measure isBH @-}
 {-@ isBH :: RBTree k v -> Bool @-}
 isBH :: RBTree k v -> Bool
-isBH Nil = True
+isBH Nil              = True
 isBH (Node c _ _ l r) = bh l == bh r
                      && isBH l 
                      && isBH r
@@ -95,24 +113,39 @@ isBH (Node c _ _ l r) = bh l == bh r
 
 {-@ measure col   @-}        
 col :: RBTree k v -> Color
-col (Node c k v l r)  = c
-col (Nil)          = B
+col (Node c k v l r) = c
+col (Nil)            = B
 
 --      color Invariant      --
 {-@ measure isRB   @-}
 isRB :: RBTree k v -> Bool
-isRB (Nil)         = True
-isRB (Node c k v l r) = isRB l && isRB r && if c == R then (col l == B) && (col r == B) else True
+isRB (Nil)            = True
+isRB (Node c k v l r) = isRB l && isRB r 
+                      && if c == R then (col l == B) && (col r == B) else True
 {-@ invariant {t:RBTree k v | isRB t => isARB t } @-}
 {-@ invariant {t:RBTree k v | isARB t && (col t == B) => isRB t} @-}
 
 {-@ measure isARB  @-}    
 isARB :: RBTree k v -> Bool
-isARB (Nil)         = True
+isARB (Nil)            = True
 isARB (Node c k v l r) = isRB l && isRB r
 
 {-@ predicate IsB T = not (col T == R) @-}
 
+
+---------------------------------------------------------------------------
+-- | lookup for an element -------------------------------------------------------
+---------------------------------------------------------------------------
+
+{-@ reflect get @-}
+{-@ get :: Ord k => k:k -> ts: RBT k v ->
+         { t:Tick (Maybe v) | tcost t <= height ts } @-}
+get :: Ord k => k -> RBTree k v -> Tick (Maybe v)
+get _ Nil    = pure Nothing
+get k' (Node c k v l r)
+    | k' < k     = step 1 (get k' l)
+    | k' > k     = step 1 (get k' r)
+    | otherwise  = wait (Just v)
 
 ---------------------------------------------------------------------------
 -- | Add an element -------------------------------------------------------
@@ -147,11 +180,86 @@ insert k v t@(Node R key val l r)
 {-@ balanceL  :: k:k -> v -> l:ARBT {key:k | key < k} v -> RBTN {key:k | k < key} v {bh l} -> RBTN k v {1 + bh l} @-}
 balanceL z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
 balanceL z zv (Node R x xv a (Node R y yv b c)) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceL k v l r = Node B k v l r
+balanceL k v l r                                  = Node B k v l r
 
 
 {-@ balanceR  :: k:k -> v -> l:RBT {key:k | key < k} v -> ARBTN {key:k | k < key} v {bh l} -> RBTN k v {1 + bh l} @-}
 balanceR x xv a (Node R y yv b (Node R z zv c d)) = Node R y yv (Node B x xv a b) (Node B z zv c d)
 balanceR x xv a (Node R z zv (Node R y yv b c) d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceR x xv a b = Node B x xv a b
+balanceR x xv a b                                 = Node B x xv a b
 
+---------------------------------------------------------------------------
+-- | Lemmas ---------------------------------------------------------------
+---------------------------------------------------------------------------
+
+-- prove that a a red-black tree
+-- with n internal nodes can have 
+-- a maximum height of 2lg(n+1). 
+
+-- we must prove the following statements
+-- 1. A subtree rooted at any tree x has at least 2^(bh x) -1 internal nodes
+-- 2. Any tree x with (height x) has bh x >= (height x) /2
+
+{-@ ple lemma1 @-}
+{-@ lemma1
+      :: Ord k
+      => t:RBT k v
+      -> { size t >= (twoToPower (bh t)) - 1 }
+@-}
+lemma1 :: Ord k => RBTree k v -> Proof
+lemma1 t@Nil
+    =   size t
+    ==. 0
+    ==. (twoToPower 0) - 1
+    ==. (twoToPower (bh t)) -1
+    *** QED
+
+lemma1 t@(Node R k v l r) 
+    =   size t
+    ==. 1 + size l + size r
+        ? lemma1 l
+        ? lemma1 r
+    >=. 1 + twoToPower (bh l) -1 + twoToPower (bh r) -1
+    ==. twoToPower (bh l) + twoToPower (bh l) - 1  
+    ==. twoToPower (bh (left t)) + twoToPower (bh (left t)) - 1
+    ==. 2*twoToPower (bh (left t)) - 1
+    ==. 2*twoToPower (bh t) - 1
+    >=. twoToPower (bh t) - 1
+    *** QED
+lemma1 t@(Node B k v l r) 
+    =   size t
+    ==. 1 + size l + size r
+        ? lemma1 l
+        ? lemma1 r
+    >=. 1 + twoToPower (bh l) -1 + twoToPower (bh r) -1
+    ==. twoToPower (bh l) + twoToPower (bh l) - 1  
+    ==. twoToPower (bh (left t)) + twoToPower (bh (left t)) - 1
+    ==. 2*twoToPower (bh (left t)) - 1
+    ==. 2*twoToPower ((bh t) - 1) - 1
+    ==. twoToPower (bh t) - 1
+    *** QED   
+
+
+{-@ ple lemma1a @-}
+{-@ lemma1a
+      :: Ord k
+      => {t:RBT k v | size t >0 }
+      -> {l:RBT k v | l == left t}
+      -> { 1 >= bh t - bh l }
+@-}
+lemma1a :: Ord k => RBTree k v -> RBTree k v -> Proof
+lemma1a t@(Node c k v l' r) l | c == B
+    = 1
+    ==. 1 + bh t - bh t
+    ==. 1 + bh t - (bh l + 1)
+    ==. bh t - bh l
+    >=. bh t - bh l
+    *** QED
+
+lemma1a t@(Node c k v l' r) l | c == R
+    = 1
+    ==. 1 + bh t - bh t
+    ==. 1 + bh t - (bh l + 0)
+    ==. bh t - bh l + 1
+    >=. bh t - bh l
+    *** QED
