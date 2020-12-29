@@ -67,7 +67,7 @@ size (Node _ _ _ l r) = 1 + size l + size r
 height :: RBTree k v -> Int
 height Nil              = 0
 height (Node _ _ _ l r) = 1 + max (height l) (height r)
-{-@ invariant {t:Tree k v | 0 <= height t} @-}
+{-@ invariant {t:Tree k v | 0 <= height t && height t == bh t + rh t} @-}
 
 {-@ measure left   @-}
 {-@ left :: {t:RBTree k v | size t >0 } -> RBTree k v @-}        
@@ -98,6 +98,13 @@ bh :: RBTree k v -> Int
 bh (Nil)            = 0
 bh (Node c k v l r) = bh l + if (c == R) then 0 else 1
 {-@ invariant {t:RBTree k v | 0 <= bh t && bh (left t) >= bh t - 1} @-}
+
+{-@ measure rh    @-}
+{-@ rh :: t:RBTree k v -> Int @-}      
+rh :: RBTree k v -> Int
+rh (Nil)            = 0
+rh (Node c k v l r) = rh l + if (c == R) then 1 else 0
+{-@ invariant {t:RBTree k v | 0 <= rh t && rh t <= bh t} @-}
 
 
 -- `black height invariant `--
@@ -202,9 +209,9 @@ balanceR x xv a b                                 = Node B x xv a b
 
 {-@ ple lemma1 @-}
 {-@ lemma1
-      :: Ord k
-      => t:RBT k v
-      -> { size t >= (twoToPower (bh t)) - 1 }
+    :: Ord k
+    => t:RBT k v
+    -> { size t >= (twoToPower (bh t)) - 1 }
 @-}
 lemma1 :: Ord k => RBTree k v -> Proof
 lemma1 t@Nil
@@ -240,12 +247,13 @@ lemma1 t@(Node B k v l r)
     *** QED   
 
 
+
 {-@ ple lemma1a @-}
 {-@ lemma1a
-      :: Ord k
-      => {t:RBT k v | size t >0 }
-      -> {l:RBT k v | l == left t}
-      -> { 1 >= bh t - bh l }
+    :: Ord k
+    => {t:RBT k v | size t >0 }
+    -> {l:RBT k v | l == left t}
+    -> { 1 >= bh t - bh l }
 @-}
 lemma1a :: Ord k => RBTree k v -> RBTree k v -> Proof
 lemma1a t@(Node c k v l' r) l | c == B
@@ -263,3 +271,32 @@ lemma1a t@(Node c k v l' r) l | c == R
     ==. bh t - bh l + 1
     >=. bh t - bh l
     *** QED
+
+{-@ ple lemma2 @-}
+{-@ lemma2 
+    :: Ord k
+    => t: RBT k v
+    -> {bh t >= (height t) / 2}
+@-}
+lemma2 :: Ord k => RBTree k v -> Proof
+lemma2 t@(Nil)
+    =   bh t
+    ==. 0
+    ==. 0 `div` 2
+    ==. (height t) `div` 2
+    *** QED
+lemma2 t@(Node B k v l r)
+    = bh t
+    ==. bh l + 1
+      ? lemma2 l
+    >=. height l `div` 2 + 1
+
+    *** ASS
+lemma2 t@(Node R k v l r)
+    = bh t
+    ==. bh l 
+      ? lemma2 l
+    >=. height l `div` 2 
+    *** ASS
+
+  
