@@ -97,14 +97,14 @@ isB (Node c k v l r) = c == B
 bh :: RBTree k v -> Int
 bh (Nil)            = 0
 bh (Node c k v l r) = bh l + if (c == R) then 0 else 1
-{-@ invariant {t:RBTree k v | 0 <= bh t && bh (left t) >= bh t - 1} @-}
+{-@ invariant {t:RBTree k v | 0 <= bh t } @-}
 
 {-@ measure rh    @-}
 {-@ rh :: t:RBTree k v -> Int @-}      
 rh :: RBTree k v -> Int
 rh (Nil)            = 0
 rh (Node c k v l r) = rh l + if (c == R) then 1 else 0
-{-@ invariant {t:RBTree k v | 0 <= rh t && rh t <= bh t} @-}
+{-@ invariant {t:RBTree k v | 0 <= rh t } @-}
 
 
 -- `black height invariant `--
@@ -115,6 +115,7 @@ isBH Nil              = True
 isBH (Node c _ _ l r) = bh l == bh r
                      && isBH l 
                      && isBH r
+{-@ invariant {t:RBTree k v | isBH t => bh t <= (height t) / 2 } @-}                     
 
 -- color of a Tree  --
 
@@ -286,11 +287,10 @@ lemma2 t@(Nil)
     ==. (height t) `div` 2
     *** QED
 lemma2 t@(Node B k v l r)
-    = bh t
-    ==. bh l + 1
+    =   bh t
+    ==. bh l + 1 
       ? lemma2 l
     >=. height l `div` 2 + 1
-
     *** ASS
 lemma2 t@(Node R k v l r)
     = bh t
@@ -299,4 +299,48 @@ lemma2 t@(Node R k v l r)
     >=. height l `div` 2 
     *** ASS
 
+
+{-@ ple lemma2a @-}
+{-@ lemma2a 
+    :: Ord k
+    => t: RBT k v
+    -> {bh t + rh t <= 2 * bh t}
+@-}
+lemma2a :: Ord k => RBTree k v -> Proof
+lemma2a t@(Nil) 
+    =   bh t + rh t
+    ==. 0 + 0
+    ==. 2 * 0
+    ==. 2 * bh t 
+    *** QED
+lemma2a t@(Node B k v l r) 
+    =   bh t + rh t
+    ==. bh l + 1 + rh l
+        ? lemma2a l
+    <=. 2 * bh l + 1
+    <=. 2 * bh t   
+    *** QED
+
+lemma2a t@(Node R k v l r) 
+    =   bh t + rh t
+    ==. bh l + rh l + 1
+        ? lemma2a l
+    <=. 2 * bh l + 1
+    ==. 2 * bh t + 1   
+    *** ASS
+
+    
   
+{-@ ple height_cost @-}
+{-@ height_cost 
+    :: Ord k
+    => t : RBT k v
+    -> { height t <= 2 * log (size t + 1) } 
+@-}   
+height_cost :: Ord k => RBTree k v -> Proof
+height_cost t 
+    = height t
+    *** ASS
+
+
+    
