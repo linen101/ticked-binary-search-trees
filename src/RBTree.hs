@@ -1,4 +1,3 @@
-{-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
 
@@ -175,6 +174,7 @@ makeBlack (Node _ k v l r)   = (Node B k v l r)
 {-@ set ::  (Ord k) => k -> v 
             -> t : RBT k v 
             -> {t' : Tick (RBT k v) | tcost t' <= height t}
+            / [height t] 
 @-}
 set :: Ord k => k -> v -> RBTree k v -> Tick (RBTree k v)
 set k v t = fmap makeBlack (insert k v t) 
@@ -183,6 +183,7 @@ set k v t = fmap makeBlack (insert k v t)
                 -> t:RBT k v 
                 -> { t' : Tick { v: ( ARBTN k v {bh t} ) | (col t == B) => isRB v } 
                         | tcost t' <= height t }
+                / [height t]        
 @-} 
 insert k v Nil  = wait (Node R k v Nil Nil)
 insert k v t@(Node B key val l r) 
@@ -235,6 +236,7 @@ balanceR x xv a b                                 =  (Node B x xv a b)
     :: Ord k
     => t:RBT k v
     -> { (twoToPower (bh t)) <= size t + 1 }
+    / [size t]
 @-}
 lemma1 :: Ord k => RBTree k v -> Proof
 lemma1 t@Nil
@@ -310,6 +312,7 @@ logComp _ _ = assumption
     :: Ord k
     => t : RBT k v
     -> { height t <= 2 * log (size t + 1) } 
+    / [height t]
 @-}   
 height_cost :: Ord k => RBTree k v -> Proof
 height_cost t 
