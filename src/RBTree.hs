@@ -5,7 +5,7 @@
 module RBTree where
 
 import Functions_Types (max, min, Nat, Maybe(..))
-import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, log)
+import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, log, fmap, (=<<))
 import Log2
 
 import Language.Haskell.Liquid.RTick
@@ -14,8 +14,6 @@ import Language.Haskell.Liquid.RTick.Combinators
 data RBTree k v = Nil | Node Color k v !(RBTree k v) !(RBTree k v) deriving (Show)
 
 data Color = B | R deriving (Eq,Show)
-
-
 
 
 ---------------------------------------------------------------------------
@@ -63,7 +61,9 @@ size (Node _ _ _ l r) = 1 + size l + size r
 --  height invariant   --
 
 {-@ measure height @-}
-{-@ height :: t:RBTree k v -> {u:Nat | isBH t => u <= rh t + bh t} @-}
+{-@ height ::   t:RBTree k v 
+                -> {u:Nat | isBH t => u <= rh t + bh t} 
+@-}
 height :: RBTree k v -> Int
 height Nil              = 0
 height (Node _ _ _ l r) = 1 + max (height l) (height r)
@@ -93,14 +93,16 @@ isB (Node c k v l r) = c == B
 -- right subtree has the same blackh.
 
 {-@ measure bh    @-}
-{-@ bh :: t:RBTree k v -> Int @-}      
+{-@ bh :: t : RBTree k v -> Int @-}      
 bh :: RBTree k v -> Int
 bh (Nil)            = 0
 bh (Node c k v l r) = bh l + if (c == R) then 0 else 1
 {-@ invariant {t:RBTree k v | 0 <= bh t } @-}
 
 {-@ measure rh    @-}
-{-@ rh :: t:RBTree k v -> {u : Int | isRB t && isBH t => u <= bh t }  @-}      
+{-@ rh ::   t : RBTree k v 
+            -> {u : Int | isRB t && isBH t => u <= bh t }  
+@-}      
 rh :: RBTree k v -> Int
 rh (Nil)            = 0
 rh (Node c k v l r) = max (rh l) (rh r) + if (c == R) then 1 else 0
@@ -129,6 +131,7 @@ isRB :: RBTree k v -> Bool
 isRB (Nil)            = True
 isRB (Node c k v l r) = isRB l && isRB r 
                       && if c == R then (col l == B) && (col r == B) else True
+
 {-@ invariant {t:RBTree k v | isRB t => isARB t } @-}
 {-@ invariant {t:RBTree k v | isARB t && (col t == B) => isRB t} @-}
 {-@ invariant {t:RBTree k v | isRB t && isBH t => rh t <= bh t} @-}
@@ -146,8 +149,10 @@ isARB (Node c k v l r) = isRB l && isRB r
 ---------------------------------------------------------------------------
 
 {-@ reflect get @-}
-{-@ get :: Ord k => k:k -> ts: RBT k v ->
-         { t:Tick (Maybe v) | tcost t <= height ts } @-}
+{-@ get ::  Ord k => k:k 
+            -> ts: RBT k v
+            -> { t:Tick (Maybe v) | tcost t <= height ts } 
+@-}
 get :: Ord k => k -> RBTree k v -> Tick (Maybe v)
 get _ Nil    = pure Nothing
 get k' (Node c k v l r)
@@ -159,42 +164,59 @@ get k' (Node c k v l r)
 -- | Add an element -------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ makeBlack :: ARBT k v -> RBT k v @-} --here
-makeBlack :: RBTree k v -> RBTree k v
-makeBlack Nil              = Nil
-makeBlack (Node _ k v l r) = Node B k v l r
 
-{-@ set :: (Ord k) => k -> v -> RBT k v -> RBT k v @-}
-set :: Ord k => k -> v-> RBTree k v -> RBTree k v
-set k v t = makeBlack (insert k v t)
+-- almost RB Tree because the color of the root may be red 
 
-{-@ insert :: (Ord k) => k -> v -> t:RBT k v -> {v: ARBTN k v {bh t} | (col t == B) => isRB v} @-} --here
-insert k v Nil             = Node R k v Nil Nil
+{-@ makeBlack :: t : (ARBT k v) -> t' : (RBT k v)  @-}        
+makeBlack :: (RBTree k v) -> (RBTree k v)
+makeBlack (Nil)              = Nil
+makeBlack (Node _ k v l r)   = (Node B k v l r)
+
+{-@ set ::  (Ord k) => k -> v 
+            -> t : RBT k v 
+            -> {t' : Tick (RBT k v) | tcost t' <= height t}
+@-}
+set :: Ord k => k -> v -> RBTree k v -> Tick (RBTree k v)
+set k v t = fmap makeBlack (insert k v t) 
+
+{-@ insert ::   (Ord k) => k -> v 
+                -> t:RBT k v 
+                -> { t' : Tick { v: ( ARBTN k v {bh t} ) | (col t == B) => isRB v } 
+                        | tcost t' <= height t }
+@-} 
+insert k v Nil  = wait (Node R k v Nil Nil)
 insert k v t@(Node B key val l r) 
-    | k < key   = balanceL key val (insert k v l) r 
-    | k > key   = balanceR key val l (insert k v r) 
-    | otherwise = t
+    | k < key   = pure ( \l' -> balanceL key val l' r) </> (insert k v l) 
+    | k > key   = pure ( \r' -> balanceR key val l r') </> (insert k v r)  
+    | otherwise = wait (Node B key v l r) 
 insert k v t@(Node R key val l r) 
-    | k < key   = Node R key val (insert k v l) r
-    | k > key   = Node R key val l (insert k v r)
-    | otherwise = t
-
+    | k < key   = pure ( \l' -> Node R key val l' r) </> (insert k v l)
+    | k > key   = pure ( \r' -> Node R key val l r') </> (insert k v r)
+    | otherwise = wait (Node R key v l r) 
 
 ---------------------------------------------------------------------------
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
 
-{-@ balanceL  :: k:k -> v -> l:ARBT {key:k | key < k} v -> RBTN {key:k | k < key} v {bh l} -> RBTN k v {1 + bh l} @-}
-balanceL z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceL z zv (Node R x xv a (Node R y yv b c)) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceL k v l r                                  = Node B k v l r
+{-@ balanceL :: k:k -> v 
+                -> l : ARBT {key:k | key < k} v 
+                -> RBTN {key:k | k < key} v {bh l} 
+                -> RBTN k v {1 + bh l} 
+@-}
+balanceL z zv (Node R y yv (Node R x xv a b) c) d =   ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
+balanceL z zv (Node R x xv a (Node R y yv b c)) d =   ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
+balanceL k v l r                                  =   (Node B k v l r)
 
 
-{-@ balanceR  :: k:k -> v -> l:RBT {key:k | key < k} v -> ARBTN {key:k | k < key} v {bh l} -> RBTN k v {1 + bh l} @-}
-balanceR x xv a (Node R y yv b (Node R z zv c d)) = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceR x xv a (Node R z zv (Node R y yv b c) d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceR x xv a b                                 = Node B x xv a b
+{-@ balanceR :: k:k -> v 
+                -> l:RBT {key:k | key < k} v 
+                -> ARBTN {key:k | k < key} v {bh l} 
+                -> RBTN k v {1 + bh l} 
+@-}
+balanceR x xv a (Node R y yv b (Node R z zv c d)) =  ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
+balanceR x xv a (Node R z zv (Node R y yv b c) d) =  ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
+balanceR x xv a b                                 =  (Node B x xv a b)
 
 ---------------------------------------------------------------------------
 -- | Lemmas ---------------------------------------------------------------
@@ -270,11 +292,15 @@ lemma1a t@(Node c k v l' r) l | c == R
     >=. bh t - bh l
     *** QED
 
-{-@ assume logTwotoPower :: x:Nat -> { log (twoToPower x) == x } @-}
+{-@ assume logTwotoPower :: x : Nat 
+                            -> { log (twoToPower x) == x } 
+@-}
 logTwotoPower :: Int -> Proof
 logTwotoPower _ = assumption
 
-{-@ assume logComp :: x:Int -> y: Int -> { x <= y => log x <= log y } @-}
+{-@ assume logComp ::   x:Int -> y: Int 
+                        -> { x <= y => log x <= log y } 
+@-}
 logComp :: Int -> Int -> Proof
 logComp _ _ = assumption
 
