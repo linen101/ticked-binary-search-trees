@@ -5,7 +5,7 @@
 module RBTree where
 
 import Functions_Types (max, min, Nat, Maybe(..))
-import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min)
+import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, log)
 import Log2
 
 import Language.Haskell.Liquid.RTick
@@ -63,11 +63,11 @@ size (Node _ _ _ l r) = 1 + size l + size r
 --  height invariant   --
 
 {-@ measure height @-}
-{-@ height :: RBTree k v -> Nat @-}
+{-@ height :: t:RBTree k v -> {u:Nat | isBH t => u <= rh t + bh t} @-}
 height :: RBTree k v -> Int
 height Nil              = 0
 height (Node _ _ _ l r) = 1 + max (height l) (height r)
-{-@ invariant {t:Tree k v | 0 <= height t && height t == bh t + rh t} @-}
+{-@ invariant {t:Tree k v | 0 <= height t } @-}
 
 {-@ measure left   @-}
 {-@ left :: {t:RBTree k v | size t >0 } -> RBTree k v @-}        
@@ -80,11 +80,11 @@ right :: RBTree k v -> RBTree k v
 right (Node c k v l r) = r
 
 
---  check if root is black  --
+--  check if node is black  --
 
 {-@ measure isB @-}       
 {-@ isB :: RBTree k v -> Bool @-}
-isB (Nil)            = False               --True or False doesnt matter wtf
+isB (Nil)            = True               --True or False doesnt matter wtf
 isB (Node c k v l r) = c == B
 
 --  black height of tree  --
@@ -100,10 +100,10 @@ bh (Node c k v l r) = bh l + if (c == R) then 0 else 1
 {-@ invariant {t:RBTree k v | 0 <= bh t } @-}
 
 {-@ measure rh    @-}
-{-@ rh :: t:RBTree k v -> Int @-}      
+{-@ rh :: t:RBTree k v -> {u : Int | isRB t && isBH t => u <= bh t }  @-}      
 rh :: RBTree k v -> Int
 rh (Nil)            = 0
-rh (Node c k v l r) = rh l + if (c == R) then 1 else 0
+rh (Node c k v l r) = max (rh l) (rh r) + if (c == R) then 1 else 0
 {-@ invariant {t:RBTree k v | 0 <= rh t } @-}
 
 
@@ -115,7 +115,6 @@ isBH Nil              = True
 isBH (Node c _ _ l r) = bh l == bh r
                      && isBH l 
                      && isBH r
-{-@ invariant {t:RBTree k v | isBH t => bh t <= (height t) / 2 } @-}                     
 
 -- color of a Tree  --
 
@@ -132,6 +131,7 @@ isRB (Node c k v l r) = isRB l && isRB r
                       && if c == R then (col l == B) && (col r == B) else True
 {-@ invariant {t:RBTree k v | isRB t => isARB t } @-}
 {-@ invariant {t:RBTree k v | isARB t && (col t == B) => isRB t} @-}
+{-@ invariant {t:RBTree k v | isRB t && isBH t => rh t <= bh t} @-}
 
 {-@ measure isARB  @-}    
 isARB :: RBTree k v -> Bool
@@ -212,42 +212,39 @@ balanceR x xv a b                                 = Node B x xv a b
 {-@ lemma1
     :: Ord k
     => t:RBT k v
-    -> { size t >= (twoToPower (bh t)) - 1 }
+    -> { (twoToPower (bh t)) <= size t + 1 }
 @-}
 lemma1 :: Ord k => RBTree k v -> Proof
 lemma1 t@Nil
-    =   size t
-    ==. 0
-    ==. (twoToPower 0) - 1
-    ==. (twoToPower (bh t)) -1
+    =   size t + 1
+    ==. 0 + 1
+    ==. (twoToPower 0)
     *** QED
 
 lemma1 t@(Node R k v l r) 
-    =   size t
-    ==. 1 + size l + size r
+    =   twoToPower (bh t)
+    <=. 2*twoToPower (bh t)
+    ==. 2*twoToPower (bh l)
+    ==. twoToPower (bh l) + twoToPower (bh l)
+    ==. twoToPower (bh l)  + twoToPower (bh r) 
         ? lemma1 l
         ? lemma1 r
-    >=. 1 + twoToPower (bh l) -1 + twoToPower (bh r) -1
-    ==. twoToPower (bh l) + twoToPower (bh l) - 1  
-    ==. twoToPower (bh (left t)) + twoToPower (bh (left t)) - 1
-    ==. 2*twoToPower (bh (left t)) - 1
-    ==. 2*twoToPower (bh t) - 1
-    >=. twoToPower (bh t) - 1
+    <=. size l + 1 + size r + 1    
+    ==. size t + 1
     *** QED
+
 lemma1 t@(Node B k v l r) 
-    =   size t
-    ==. 1 + size l + size r
+    =   twoToPower (bh t)
+    ==. 2*twoToPower (bh t - 1)
+    ==. 2*twoToPower (bh l) 
+    ==. twoToPower (bh l) + twoToPower (bh l)
+    ==. twoToPower (bh l)  + twoToPower (bh r) 
         ? lemma1 l
         ? lemma1 r
-    >=. 1 + twoToPower (bh l) -1 + twoToPower (bh r) -1
-    ==. twoToPower (bh l) + twoToPower (bh l) - 1  
-    ==. twoToPower (bh (left t)) + twoToPower (bh (left t)) - 1
-    ==. 2*twoToPower (bh (left t)) - 1
-    ==. 2*twoToPower ((bh t) - 1) - 1
-    ==. twoToPower (bh t) - 1
-    *** QED   
-
-
+    <=. size l + 1 + size r + 1    
+    ==. size t + 1
+    *** QED 
+ 
 
 {-@ ple lemma1a @-}
 {-@ lemma1a
@@ -273,64 +270,15 @@ lemma1a t@(Node c k v l' r) l | c == R
     >=. bh t - bh l
     *** QED
 
-{-@ ple lemma2 @-}
-{-@ lemma2 
-    :: Ord k
-    => t: RBT k v
-    -> {bh t >= (height t) / 2}
-@-}
-lemma2 :: Ord k => RBTree k v -> Proof
-lemma2 t@(Nil)
-    =   bh t
-    ==. 0
-    ==. 0 `div` 2
-    ==. (height t) `div` 2
-    *** QED
-lemma2 t@(Node B k v l r)
-    =   bh t
-    ==. bh l + 1 
-      ? lemma2 l
-    >=. height l `div` 2 + 1
-    *** ASS
-lemma2 t@(Node R k v l r)
-    = bh t
-    ==. bh l 
-      ? lemma2 l
-    >=. height l `div` 2 
-    *** ASS
+{-@ assume logTwotoPower :: x:Nat -> { log (twoToPower x) == x } @-}
+logTwotoPower :: Int -> Proof
+logTwotoPower _ = assumption
+
+{-@ assume logComp :: x:Int -> y: Int -> { x <= y => log x <= log y } @-}
+logComp :: Int -> Int -> Proof
+logComp _ _ = assumption
 
 
-{-@ ple lemma2a @-}
-{-@ lemma2a 
-    :: Ord k
-    => t: RBT k v
-    -> {bh t + rh t <= 2 * bh t}
-@-}
-lemma2a :: Ord k => RBTree k v -> Proof
-lemma2a t@(Nil) 
-    =   bh t + rh t
-    ==. 0 + 0
-    ==. 2 * 0
-    ==. 2 * bh t 
-    *** QED
-lemma2a t@(Node B k v l r) 
-    =   bh t + rh t
-    ==. bh l + 1 + rh l
-        ? lemma2a l
-    <=. 2 * bh l + 1
-    <=. 2 * bh t   
-    *** QED
-
-lemma2a t@(Node R k v l r) 
-    =   bh t + rh t
-    ==. bh l + rh l + 1
-        ? lemma2a l
-    <=. 2 * bh l + 1
-    ==. 2 * bh t + 1   
-    *** ASS
-
-    
-  
 {-@ ple height_cost @-}
 {-@ height_cost 
     :: Ord k
@@ -339,8 +287,16 @@ lemma2a t@(Node R k v l r)
 @-}   
 height_cost :: Ord k => RBTree k v -> Proof
 height_cost t 
-    = height t
-    *** ASS
+    =   height t
+    <=. rh t + bh t
+    <=. bh t + bh t
+    ==. 2 * bh t
+      ? toProof (logTwotoPower (bh t))
+    ==. 2 * log (twoToPower (bh t)) 
+      ? lemma1 t
+      ? toProof (logComp (twoToPower (bh t)) (size t + 1))
+    <=. 2 * log (size t + 1)  
+    *** QED
 
 
-    
+ -- size t >= (twoToPower (bh t)) - 1    
