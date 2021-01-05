@@ -55,7 +55,6 @@ data Color = B | R deriving (Eq,Show)
 size :: RBTree k v -> Int
 size Nil              = 0
 size (Node _ _ _ l r) = 1 + size l + size r
-{-@ invariant {t:Tree k v | 0 <= size t} @-}
 
 --  height invariant   --
 
@@ -66,7 +65,6 @@ size (Node _ _ _ l r) = 1 + size l + size r
 height :: RBTree k v -> Int
 height Nil              = 0
 height (Node _ _ _ l r) = 1 + max (height l) (height r)
-{-@ invariant {t:Tree k v | 0 <= height t } @-}
 
 {-@ measure left   @-}
 {-@ left :: {t:RBTree k v | size t >0 } -> RBTree k v @-}        
@@ -92,20 +90,16 @@ isB (Node c k v l r) = c == B
 -- right subtree has the same blackh.
 
 {-@ measure bh    @-}
-{-@ bh :: t : RBTree k v -> Int @-}      
+{-@ bh :: t : RBTree k v -> Nat @-}      
 bh :: RBTree k v -> Int
 bh (Nil)            = 0
 bh (Node c k v l r) = bh l + if (c == R) then 0 else 1
-{-@ invariant {t:RBTree k v | 0 <= bh t } @-}
 
 {-@ measure rh    @-}
-{-@ rh ::   t : RBTree k v 
-            -> {u : Int | isRB t && isBH t => u <= bh t }  
-@-}      
+{-@ rh ::   t : RBTree k v -> Nat @-}      
 rh :: RBTree k v -> Int
 rh (Nil)            = 0
 rh (Node c k v l r) = max (rh l) (rh r) + if (c == R) then 1 else 0
-{-@ invariant {t:RBTree k v | 0 <= rh t } @-}
 
 
 -- `black height invariant `--
@@ -131,9 +125,6 @@ isRB (Nil)            = True
 isRB (Node c k v l r) = isRB l && isRB r 
                       && if c == R then (col l == B) && (col r == B) else True
 
-{-@ invariant {t:RBTree k v | isRB t => isARB t } @-}
-{-@ invariant {t:RBTree k v | isARB t && (col t == B) => isRB t} @-}
-{-@ invariant {t:RBTree k v | isRB t && isBH t => rh t <= bh t} @-}
 
 {-@ measure isARB  @-}    
 isARB :: RBTree k v -> Bool
@@ -163,37 +154,23 @@ get k' (Node c k v l r)
 -- | Add an element -------------------------------------------------------
 ---------------------------------------------------------------------------
 
+{-@ makeBlack :: ARBT k v -> BlackRBT k v @-}
+makeBlack Nil              = Nil
+makeBlack (Node _ k v l r) = Node B k v l r
 
--- almost RB Tree because the color of the root may be red 
+{-@ set :: (Ord k) => k -> v->  BlackRBT k v -> BlackRBT k v @-}
+set k v s = makeBlack (insert k v s)
 
-{-@ makeBlack :: t : (ARBT k v) -> t' : (RBT k v)  @-}        
-makeBlack :: (RBTree k v) -> (RBTree k v)
-makeBlack (Nil)              = Nil
-makeBlack (Node _ k v l r)   = (Node B k v l r)
-
-{-@ set ::  (Ord k) => k -> v 
-            -> t : RBT k v 
-            -> {t' : Tick (RBT k v) | tcost t' <= height t}
-            / [height t] 
-@-}
-set :: Ord k => k -> v -> RBTree k v -> Tick (RBTree k v)
-set k v t = fmap makeBlack (insert k v t) 
-
-{-@ insert ::   (Ord k) => k -> v 
-                -> t:RBT k v 
-                -> { t' : Tick { v: ( ARBTN k v {bh t} ) | (col t == B) => isRB v } 
-                        | tcost t' <= height t }
-                / [height t]        
-@-} 
-insert k v Nil  = wait (Node R k v Nil Nil)
-insert k v t@(Node B key val l r) 
-    | k < key   = pure ( \l' -> balanceL key val l' r) </> (insert k v l) 
-    | k > key   = pure ( \r' -> balanceR key val l r') </> (insert k v r)  
-    | otherwise = wait (Node B key v l r) 
-insert k v t@(Node R key val l r) 
-    | k < key   = pure ( \l' -> Node R key val l' r) </> (insert k v l)
-    | k > key   = pure ( \r' -> Node R key val l r') </> (insert k v r)
-    | otherwise = wait (Node R key v l r) 
+{-@ insert :: (Ord k) => k -> v -> t:RBT k v -> {v: ARBTN k v {bh t} | IsB t => isRB v} @-}
+insert k v Nil                    = Node R k v Nil Nil
+insert k v s@(Node B key val l r) = case compare k key of
+                              LT -> let t = balanceL key val (insert k v l) r in t
+                              GT -> let t = balanceR key val l (insert k v r) in t
+                              EQ -> s
+insert k v s@(Node R key val l r) = case compare k key of
+                              LT -> Node R key val (insert k v l) r
+                              GT -> Node R key val l (insert k v r)
+                              EQ -> s
 
 ---------------------------------------------------------------------------
 -- | Rotations ------------------------------------------------------------
@@ -306,11 +283,18 @@ logTwotoPower _ = assumption
 logComp :: Int -> Int -> Proof
 logComp _ _ = assumption
 
+{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t >0 } @-}
+
+{-@ assume heightRB ::   t : BlackRBT k v 
+                        -> { rh t <= bh t } 
+@-}
+heightRB ::  RBTree k v  -> Proof
+heightRB _ = assumption
 
 {-@ ple height_cost @-}
 {-@ height_cost 
     :: Ord k
-    => t : RBT k v
+    => t : BlackRBT k v
     -> { height t <= 2 * log (size t + 1) } 
     / [height t]
 @-}   
@@ -318,6 +302,7 @@ height_cost :: Ord k => RBTree k v -> Proof
 height_cost t 
     =   height t
     <=. rh t + bh t
+ --     ? toProof (heightRB t)
     <=. bh t + bh t
     ==. 2 * bh t
       ? toProof (logTwotoPower (bh t))
@@ -328,4 +313,25 @@ height_cost t
     *** QED
 
 
- -- size t >= (twoToPower (bh t)) - 1    
+
+-------------------------------------------------------------------------------
+-- Auxiliary Invariants -------------------------------------------------------
+-------------------------------------------------------------------------------
+
+{-@ predicate Invs V = Inv1 V && Inv2 V && Inv3 V   @-}
+{-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
+{-@ predicate Inv2 V = isRB V => isARB V            @-}
+{-@ predicate Inv3 V = 0 <= bh V                    @-}
+{-@ predicate Inv4 V = (isRB V && isBH V) => rh V <= bh V @-}
+{-@ using (Color) as {v: Color | v = R || v = B}           @-}
+{-@ using (RBTree k v) as {v: RBTree k v | Invs v}  @-}
+{-@ using (BlackRBT k v ) as {t : BlackRBT k v  | rh t <= bh t} @-}
+
+
+{- {-@ inv :: RBTree k v -> {v:RBTree k v | Invs v}        @-}
+inv Nil           = Nil
+inv (Node c k v l r) = Node c k v (inv l) (inv r)
+
+{-@ invc :: t:RBTree k v -> {t':RBTree k v | Invs t }  @-}
+invc Nil           =  Nil
+invc (Node c k v l r) =  Node c k v  (invc l) (invc r) -}
