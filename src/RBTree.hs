@@ -44,6 +44,11 @@ data Color = B | R deriving (Eq,Show)
 {-@ type ARBT k v    = {v: ORBT k v | isARB v && isBH v} @-}
 {-@ type ARBTN k v N = {v: ARBT k v | bh v = N }         @-}
 
+--   Black rooted Red-Black Trees   --
+
+{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t >0 } @-}
+
+
 -------------------------------------------------------------------------------
 -- | Measures:
 -------------------------------------------------------------------------------
@@ -154,23 +159,31 @@ get k' (Node c k v l r)
 -- | Add an element -------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ makeBlack :: ARBT k v -> BlackRBT k v @-}
+{-@ makeBlack :: RBT k v -> BlackRBT k v @-}
 makeBlack Nil              = Nil
 makeBlack (Node _ k v l r) = Node B k v l r
 
-{-@ set :: (Ord k) => k -> v->  BlackRBT k v -> BlackRBT k v @-}
-set k v s = makeBlack (insert k v s)
+{-@ set ::  (Ord k) => k -> v  
+            -> t : BlackRBT k v 
+            -> { t' : Tick (BlackRBT k v) 
+                    | tcost t' <= height t} 
+@-}
+set k v s = fmap makeBlack (insert k v s)
 
-{-@ insert :: (Ord k) => k -> v -> t:RBT k v -> {v: ARBTN k v {bh t} | IsB t => isRB v} @-}
-insert k v Nil                    = Node R k v Nil Nil
+{-@ insert ::   (Ord k) => k -> v 
+                -> t:BlackRBT k v 
+                -> { t' : Tick (RBTN k v {bh t}) 
+                        | tcost t' <= height t} 
+@-}
+insert k v Nil                    = wait (Node R k v Nil Nil)
 insert k v s@(Node B key val l r) = case compare k key of
-                              LT -> let t = balanceL key val (insert k v l) r in t
-                              GT -> let t = balanceR key val l (insert k v r) in t
-                              EQ -> s
+                              LT -> pure (\l' -> balanceL key val l' r) </> (insert k v l) 
+                              GT -> pure (\r' -> balanceR key val l r') </> (insert k v r) 
+                              EQ -> wait (Node B key v l r)
 insert k v s@(Node R key val l r) = case compare k key of
-                              LT -> Node R key val (insert k v l) r
-                              GT -> Node R key val l (insert k v r)
-                              EQ -> s
+                              LT -> pure (\l' -> Node R key val l' r) </> (insert k v l)
+                              GT -> pure (\r' -> Node R key val l r') </> (insert k v r)
+                              EQ -> wait (Node R key v l r)
 
 ---------------------------------------------------------------------------
 -- | Rotations ------------------------------------------------------------
@@ -179,8 +192,8 @@ insert k v s@(Node R key val l r) = case compare k key of
 
 {-@ balanceL :: k:k -> v 
                 -> l : ARBT {key:k | key < k} v 
-                -> RBTN {key:k | k < key} v {bh l} 
-                -> RBTN k v {1 + bh l} 
+                -> r : RBTN {key:k | k < key} v {bh l} 
+                -> t : RBTN k v {1 + bh l} 
 @-}
 balanceL z zv (Node R y yv (Node R x xv a b) c) d =   ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
 balanceL z zv (Node R x xv a (Node R y yv b c)) d =   ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
@@ -188,9 +201,9 @@ balanceL k v l r                                  =   (Node B k v l r)
 
 
 {-@ balanceR :: k:k -> v 
-                -> l:RBT {key:k | key < k} v 
-                -> ARBTN {key:k | k < key} v {bh l} 
-                -> RBTN k v {1 + bh l} 
+                -> l : RBT {key:k | key < k} v 
+                -> r : ARBTN {key:k | k < key} v {bh l} 
+                -> t : RBTN k v {1 + bh l} 
 @-}
 balanceR x xv a (Node R y yv b (Node R z zv c d)) =  ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
 balanceR x xv a (Node R z zv (Node R y yv b c) d) =  ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
@@ -283,14 +296,6 @@ logTwotoPower _ = assumption
 logComp :: Int -> Int -> Proof
 logComp _ _ = assumption
 
-{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t >0 } @-}
-
-{-@ assume heightRB ::   t : BlackRBT k v 
-                        -> { rh t <= bh t } 
-@-}
-heightRB ::  RBTree k v  -> Proof
-heightRB _ = assumption
-
 {-@ ple height_cost @-}
 {-@ height_cost 
     :: Ord k
@@ -322,16 +327,8 @@ height_cost t
 {-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
 {-@ predicate Inv2 V = isRB V => isARB V            @-}
 {-@ predicate Inv3 V = 0 <= bh V                    @-}
-{-@ predicate Inv4 V = (isRB V && isBH V) => rh V <= bh V @-}
+
 {-@ using (Color) as {v: Color | v = R || v = B}           @-}
 {-@ using (RBTree k v) as {v: RBTree k v | Invs v}  @-}
 {-@ using (BlackRBT k v ) as {t : BlackRBT k v  | rh t <= bh t} @-}
 
-
-{- {-@ inv :: RBTree k v -> {v:RBTree k v | Invs v}        @-}
-inv Nil           = Nil
-inv (Node c k v l r) = Node c k v (inv l) (inv r)
-
-{-@ invc :: t:RBTree k v -> {t':RBTree k v | Invs t }  @-}
-invc Nil           =  Nil
-invc (Node c k v l r) =  Node c k v  (invc l) (invc r) -}
