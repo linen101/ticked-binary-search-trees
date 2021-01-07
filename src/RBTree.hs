@@ -171,16 +171,16 @@ makeBlack (Node _ k v l r) = Node B k v l r
 set k v s = fmap makeBlack (insert k v s)
 
 {-@ insert ::   (Ord k) => k -> v 
-                -> t:BlackRBT k v 
+                -> t : BlackRBT k v 
                 -> { t' : Tick (RBTN k v {bh t}) 
                         | tcost t' <= height t} 
 @-}
-insert k v Nil                    = wait (Node R k v Nil Nil)
-insert k v s@(Node B key val l r) = case compare k key of
+insert k v Nil                  = wait (Node R k v Nil Nil)
+insert k v (Node B key val l r) = case compare k key of
                               LT -> pure (\l' -> balanceL key val l' r) </> (insert k v l) 
                               GT -> pure (\r' -> balanceR key val l r') </> (insert k v r) 
                               EQ -> wait (Node B key v l r)
-insert k v s@(Node R key val l r) = case compare k key of
+insert k v (Node R key val l r) = case compare k key of
                               LT -> pure (\l' -> Node R key val l' r) </> (insert k v l)
                               GT -> pure (\r' -> Node R key val l r') </> (insert k v r)
                               EQ -> wait (Node R key v l r)
@@ -226,13 +226,14 @@ balanceR x xv a b                                 =  (Node B x xv a b)
     :: Ord k
     => t:RBT k v
     -> { (twoToPower (bh t)) <= size t + 1 }
-    / [size t]
+    / [bh t]
 @-}
 lemma1 :: Ord k => RBTree k v -> Proof
 lemma1 t@Nil
-    =   size t + 1
+    =   twoToPower 0
+    ==. 1
     ==. 0 + 1
-    ==. (twoToPower 0)
+    ==. size t + 1
     *** QED
 
 lemma1 t@(Node R k v l r) 
@@ -307,7 +308,6 @@ height_cost :: Ord k => RBTree k v -> Proof
 height_cost t 
     =   height t
     <=. rh t + bh t
- --     ? toProof (heightRB t)
     <=. bh t + bh t
     ==. 2 * bh t
       ? toProof (logTwotoPower (bh t))
