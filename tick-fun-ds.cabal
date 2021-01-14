@@ -26,6 +26,7 @@ library
       Functions_Types
       RBTree
       Log2
+      LLRBTree
   other-modules:
       Paths_tick_fun_ds
   hs-source-dirs:
