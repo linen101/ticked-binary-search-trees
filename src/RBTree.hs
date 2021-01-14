@@ -285,6 +285,52 @@ lemma1a t@(Node c k v l' r) l | c == R
     >=. bh t - bh l
     *** QED
 
+{-@ ple lemma2 @-}
+{-@ lemma2
+    :: Ord k
+    => t: BlackRBT k v
+    -> {bh t + rh t <= 2 * bh t}
+@-}
+lemma2 :: Ord k => RBTree k v -> Proof
+lemma2 t@(Node B k v Nil Nil) 
+    =   bh t + rh t
+    ==. 1 + 0
+    <=. 2
+    ==. 2 * bh t 
+    *** QED
+lemma2 t@(Node B k v l r) | col l == B && col r == R
+    =   bh t + rh t
+    ==. bh l + 1 + rh l
+        ? lemma2 l
+    <=. 2 * bh l + 1
+    <=. 2 * bh t   
+    *** QED
+lemma2 t@(Node B k v l r) | col l == R && col r == B
+    =   bh t + rh t
+    ==. bh r + 1 + rh r
+        ? lemma2 r
+    <=. 2 * bh r + 1
+    ==. 2 * bh l + 1
+    <=. 2 * bh t   
+    *** QED
+lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l >= rh r
+    =   bh t + rh t
+    ==. bh l + 1 + rh l
+        ? lemma2 l
+    <=. 2 * bh l + 1
+    <=. 2 * bh t   
+    *** QED
+lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l < rh r
+    =   bh t + rh t
+    ==. bh r + 1 + rh r
+        ? lemma2 r
+    <=. 2 * bh r + 1
+    ==. 2 * bh l + 1
+    <=. 2 * bh t   
+    *** QED            
+
+
+
 {-@ assume logTwotoPower :: x : Nat 
                             -> { log (twoToPower x) == x } 
 @-}
