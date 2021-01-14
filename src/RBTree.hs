@@ -1,7 +1,8 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
 
-module RBTree where
+module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right) where
+
 
 import Functions_Types (max, min, Nat, Maybe(..))
 import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, log, fmap, (=<<))
@@ -136,7 +137,6 @@ isARB :: RBTree k v -> Bool
 isARB (Nil)            = True
 isARB (Node c k v l r) = isRB l && isRB r
 
-{-@ predicate IsB T = not (col T == R) @-}
 
 
 ---------------------------------------------------------------------------
@@ -164,14 +164,14 @@ makeBlack Nil              = Nil
 makeBlack (Node _ k v l r) = Node B k v l r
 
 {-@ set ::  (Ord k) => k -> v  
-            -> t : BlackRBT k v 
+            -> t : RBT k v 
             -> { t' : Tick (BlackRBT k v) 
                     | tcost t' <= height t} 
 @-}
 set k v s = fmap makeBlack (insert k v s)
 
 {-@ insert ::   (Ord k) => k -> v 
-                -> t : BlackRBT k v 
+                -> t : RBT k v 
                 -> { t' : Tick (RBTN k v {bh t}) 
                         | tcost t' <= height t} 
 @-}
@@ -270,7 +270,7 @@ lemma1 t@(Node B k v l r)
 @-}
 lemma1a :: Ord k => RBTree k v -> RBTree k v -> Proof
 lemma1a t@(Node c k v l' r) l | c == B
-    = 1
+    =   1
     ==. 1 + bh t - bh t
     ==. 1 + bh t - (bh l + 1)
     ==. bh t - bh l
@@ -278,7 +278,7 @@ lemma1a t@(Node c k v l' r) l | c == B
     *** QED
 
 lemma1a t@(Node c k v l' r) l | c == R
-    = 1
+    =   1
     ==. 1 + bh t - bh t
     ==. 1 + bh t - (bh l + 0)
     ==. bh t - bh l + 1
@@ -368,6 +368,10 @@ height_cost t
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
+{-@ predicate IsB T = not (col T == R) @-}
+{-@ predicate IsR T = not (col T == B) @-}
+
+
 
 {-@ predicate Invs V = Inv1 V && Inv2 V && Inv3 V   @-}
 {-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
