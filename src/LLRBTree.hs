@@ -37,12 +37,12 @@ isempty (Node _ _ _ l r) = False
 ---------------------------------------------------------------------------
 
 {-@ set' ::  (Ord k) => k -> v  
-            -> LLRBT k v 
-            -> BlackLLRBT k v
+            -> t : LLRBT k v 
+            -> {t' : Tick (BlackLLRBT k v) | tcost t' <= height t}
                     
 @-}
 
-set' k v s = makeBlack' (insert' k v s)
+set' k v s = fmap makeBlack' (insert' k v s)
 
 {-@ makeBlack' :: LLARBT k v -> BlackLLRBT k v @-}
 makeBlack' Nil              = Nil
@@ -52,14 +52,14 @@ makeBlack' (Node _ k v l r) = Node B k v l r
 
 {-@ insert' ::   (Ord k) => k -> v 
                 -> t : LLRBT k v 
-                -> {t' : LLARBTN k v {bh t} | IsB t => isRB t'}
+                -> {ti : Tick {t' : (LLARBTN k v {bh t}) | IsB t => isRB t'} | tcost ti <= height t}
 @-}
-insert' :: Ord k => k -> v -> RBTree k v -> RBTree k v
-insert' k v Nil = Node R k v Nil Nil
+insert' :: Ord k => k -> v -> RBTree k v -> Tick (RBTree k v)
+insert' k v Nil                    = pure (Node R k v Nil Nil)
 insert' k v (Node col key val l r) = case compare k key of
-    LT -> balanceL' col key val (insert' k v l) r
-    GT -> balanceR' col key val l (insert' k v r)
-    EQ -> Node col key v l r
+    LT -> pure (\l' -> balanceL' col key val l' r) </> (insert' k v l)
+    GT -> pure (\r' -> balanceR' col key val l r') </> (insert' k v r)
+    EQ -> wait (Node col key v l r)
 
 
 
