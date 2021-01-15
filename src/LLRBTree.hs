@@ -15,9 +15,7 @@ import Language.Haskell.Liquid.RTick.Combinators
 {-@ type LLRBTN k v N   = {t: RBTN k v N   | isLeftLean t}   @-}
 {-@ type LLARBT k v     = {t: ARBT k v     | isLeftLean t}   @-}
 {-@ type LLARBTN k v N  = {t: ARBTN k v N  | isLeftLean t }  @-}
-{-@ type BlackLLRBT k v = {t: LLRBT k v    | (bh t > 0 && IsB t)
-                                            || isempty t} 
-@-}
+{-@ type BlackLLRBT k v = {t: BlackRBT k v | isLeftLean t }  @-}
 
 {-@ measure isLeftLean @-}
 {-@ isLeftLean :: RBTree k v -> Bool @-}
@@ -27,10 +25,6 @@ isLeftLean (Node c _ _ l r) = isLeftLean l && isLeftLean r
                            && (col r == B)
 
 
-{-@ measure isempty @-}
-isempty :: RBTree k v -> Bool
-isempty Nil              = True
-isempty (Node _ _ _ l r) = False
 
 ---------------------------------------------------------------------------
 -- | Left Leaning Red-Black Trees -----------------------------------------
@@ -44,15 +38,14 @@ isempty (Node _ _ _ l r) = False
 
 set' k v s = fmap makeBlack' (insert' k v s)
 
-{-@ makeBlack' :: LLARBT k v -> BlackLLRBT k v @-}
-makeBlack' Nil              = Nil
+{-@ makeBlack' :: {t : LLARBT k v | size t > 0} -> BlackLLRBT k v @-}
 makeBlack' (Node _ k v l r) = Node B k v l r
-
 
 
 {-@ insert' ::   (Ord k) => k -> v 
                 -> t : LLRBT k v 
-                -> {ti : Tick {t' : (LLARBTN k v {bh t}) | IsB t => isRB t'} | tcost ti <= height t}
+                -> {ti : Tick {t' : (LLARBTN k v {bh t}) | (IsB t => isRB t') && size t' > 0} 
+                              | tcost ti <= height t}
 @-}
 insert' :: Ord k => k -> v -> RBTree k v -> Tick (RBTree k v)
 insert' k v Nil                    = pure (Node R k v Nil Nil)
@@ -62,12 +55,12 @@ insert' k v (Node col key val l r) = case compare k key of
     EQ -> wait (Node col key v l r)
 
 
-
 {-@ balanceL' :: c:Color -> k:k -> v 
-                -> {l : LLARBT {key:k | key < k} v |  c == R => isRB l }
+                -> {l : LLARBT {key:k | key < k} v |  (c == R => isRB l) && size l >0 }
                 -> {r : LLRBTN {key:k | k < key} v {bh l} | IsB r}
                 -> {t : LLARBT k v | (if (c==B) then (bh t = bh l + 1) else (bh t = bh l))
-                                   && ((c == B) => isRB t)}
+                                   && ((c == B) => isRB t)
+                                   && size t > 0}
 
 @-}
 balanceL' :: Color -> k -> v -> RBTree k v -> RBTree k v -> RBTree k v
@@ -76,9 +69,10 @@ balanceL' col x xv a b                               = Node col x xv a b
 
 {-@ balanceR' :: c:Color -> k:k -> v 
                 -> {l : LLRBT {key:k | key < k} v | c == R =>  IsB l }
-                -> {r : LLRBTN {key:k | k < key} v {bh l} |  c == R => isRB r  }
+                -> {r : LLRBTN {key:k | k < key} v {bh l} |  (c == R => isRB r) && size r > 0 }
                 -> {t : LLARBT k v | (if (c==B) then (bh t = bh l + 1) else (bh t = bh l))
-                                   && ((c == B) => isRB t)}
+                                   && ((c == B) => isRB t)
+                                   && size t > 0}
 @-}
 balanceR' :: Color -> k -> v -> RBTree k v -> RBTree k v -> RBTree k v
 balanceR' B y yv (Node R x xv a b) (Node R z zv c d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
