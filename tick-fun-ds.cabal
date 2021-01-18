@@ -27,6 +27,7 @@ library
       RBTree
       Log2
       LLRBTree
+      RBTdeletion
   other-modules:
       Paths_tick_fun_ds
   hs-source-dirs:
