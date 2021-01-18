@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
 
-module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right) where
+module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right, balanceL, balanceR) where
 
 
 import Functions_Types (max, min, Nat, Maybe(..))
@@ -36,7 +36,7 @@ data Color = B | R deriving (Eq,Show)
 
 --   Red-Black Trees            --
 
-{-@ type RBT k v    = {v: ORBT k v | isRB v && isBH v } @-}
+{-@ type RBT k v    = {v: ARBT k v | isRB v } @-}
 {-@ type RBTN k v N = {v: RBT k v  | bh v = N }         @-}
 
 
