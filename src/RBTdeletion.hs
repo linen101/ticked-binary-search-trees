@@ -32,8 +32,8 @@ makeRed (Node B k v l r) = Node R k v l r
 
 {-@ balL :: Ord k => k:k -> v 
          -> l : ARBT {key:k | key < k} v  
-         -> {r : RBTN {key:k | key > k} v {bh l + 1} | IsR l => IsB r } 
-         -> {t : ARBTN k v {bh l + 1} | isB r => isRB t } 
+         -> r : RBTN {key:k | key > k} v {bh l+1}
+         -> {t : ARBTN k v {bh l + 1} | IsB r => isRB t}
 @-}
 balL :: Ord k => k -> v -> RBTree k v -> RBTree k v -> RBTree k v
 balL y yv (Node R x xv a b) c                  = Node R y yv (Node B x xv a b) c
@@ -54,6 +54,7 @@ balR :: Ord k => k -> v -> RBTree k v -> RBTree k v -> RBTree k v
 balR x xv a (Node R y yv b c)                  = Node R x xv a (Node B y yv b c)
 balR y yv (Node B x xv a b) bl                 = balanceL y yv (Node R x xv a b) bl
 balR z zv (Node R x xv a (Node B y yv b c)) bl = Node R y yv (balanceL x xv (makeRed a) b) (Node B z zv c bl)
+
 
 {-@ merge :: Ord k => k:k 
           -> l : RBT {key:k | key < k} v 
@@ -79,22 +80,24 @@ merge k (Node R x xv a b) c                 =  Node R x xv a (merge k b c)     -
 
 {-@ del :: Ord k => k 
            -> t : RBT k v 
-           -> {t' : ARBT k v | IsB t => bh t' = bh t - 1 && IsR t => bh t' = bh t } 
+           -> {t' : ARBT k v | (if (IsB t && size t>0) then bh t' = bh t - 1 else bh t' = bh t )
+                            && (IsB t || isRB t') } 
            / [height t]
 @-}
 del :: Ord k => k -> RBTree k v -> RBTree k v
 del k Nil                   = Nil
-del k (Node col key v a b)  = 
-	case compare k key of
-	    LT             -> delL key v a b
-	    GT             -> delR key v a b
-	    EQ             -> merge k a b
-	where 
-	    delL z zv c@(Node B _ _ _ _) d = balL z zv (del k c) d
-	    delL z zv c d                  = Node R z zv (del k c) d
-
-	    delR z zv c d@(Node B _ _ _ _) = balR z zv c (del k d)
-	    delR z zv c d                  = Node R z zv c (del k d)
+del k (Node col key v l r)  = 
+    case compare k key of
+        LT -> case l of
+                Nil            -> Node R key v Nil r
+                Node B _ _ _ _ -> balL key v (del k l) r
+                _              -> Node R key v (del k l) r
+        GT -> case r of
+                Nil            -> Node R key v l Nil
+                Node B _ _ _ _ -> balR key v l (del k r)
+                _              -> Node R key v l (del k r)
+        EQ                     -> merge k l r
+      
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
