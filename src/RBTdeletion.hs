@@ -70,22 +70,22 @@ balR z zv (Node R x xv a (Node B y yv b c)) bl = Node R y yv (balanceL x xv (mak
           -> l : RBT {key:k | key < k} v 
           -> r : RBTN {key:k | key > k} v {bh l}
           -> {ti : Tick {t : (ARBTN k v {bh l}) | IsB l && IsB r => isRB t} 
-                 | tcost ti <=  max (height l) (height r)}
+                 | tcost ti <= min (height l) (height r) }
 @-}
 merge :: Ord k => k -> RBTree k v -> RBTree k v -> Tick (RBTree k v)
 merge _ Nil x                               =  pure x
 merge _ x Nil                               =  pure x
-merge k (Node R x xv a b) (Node R y yv c d) = 
-    case tval (merge k b c) of
-        Node R z zv b' c'                   -> wait (Node R z zv (Node R x xv a b') (Node R y yv c' d))
-        bc                                  -> wait (Node R x xv a (Node R y yv bc d))
-merge k (Node B x xv a b) (Node B y yv c d) =
-    case tval (merge k b c) of 
-        Node R z zv b' c'                   -> wait (Node R z zv (Node B x xv a b') (Node B y yv c' d))
-        bc                                  -> wait (balL x xv a (Node B y yv c d))
+merge k (Node R x xv a b) (Node R y yv c d) =  pure (\m -> mergeR m) </> (merge k b c)
+    where
+        mergeR (Node R z zv b' c')  = (Node R z zv (Node R x xv a b') (Node R y yv c' d))
+        mergeR bc                   = (Node R x xv a (Node R y yv bc d))
+merge k (Node B x xv a b) (Node B y yv c d) = pure (\m -> mergeB m) </> (merge k b c)
+    where
+        mergeB (Node R z zv b' c')  = (Node R z zv (Node B x xv a b') (Node B y yv c' d))
+        mergeB bc                   = (balL x xv a (Node B y yv c d))
 merge k a (Node R x xv b c)                 =  pure (\l' -> Node R x xv l' c) <*> (merge k a b)    -- IsB l && IsB r => isRB t
 merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') <*> (merge k b c)     -- IsB l && IsB r => isRB t   		
-
+    
 
 {-@ delete :: Ord k => k 
                     -> t : BlackRBT k v 
