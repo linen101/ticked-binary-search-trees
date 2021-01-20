@@ -26,7 +26,7 @@ import Language.Haskell.Liquid.RTick.Combinators
 makeRed (Node B k v l r) = Node R k v l r 
 
 {-@ makeBlackD :: t  : ARBT k v
-               -> {t' : RBT k v | size t > 0 => IsBlackRBT t' }
+               -> {t' : RBT k v | size t' = 0 || IsBlackRBT t' }
 @-}
 makeBlackD Nil              = Nil
 makeBlackD (Node _ k v l r) = Node B k v l r 
@@ -89,7 +89,7 @@ merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') <*
 
 {-@ delete :: Ord k => k 
                     -> t : BlackRBT k v 
-                    -> {ti : Tick (RBT k v) 
+                    -> {ti : Tick { t' : (RBT k v) | size t' = 0 || IsBlackRBT t' } 
                            | tcost ti <= height t}  
 @-}
 delete k t = fmap makeBlackD (del k t)
@@ -99,7 +99,7 @@ delete k t = fmap makeBlackD (del k t)
 {-@ del :: Ord k => k 
            -> t : RBT k v 
            -> { ti : Tick {t' : (ARBT k v) | (if (IsB t && size t>0) then bh t' = bh t - 1 else bh t' = bh t ) 
-                            && (not (IsB t) => isRB t') } 
+                            && (not (IsB t) => isRB t') }
                    | tcost ti <= height t }
            / [height t]
 @-}
