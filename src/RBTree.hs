@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
 
-module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right, balanceL, balanceR) where
+module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right, balanceL, balanceR,logComp,logTwotoPower) where
 
 
 import Functions_Types (max, min, Nat, Maybe(..))
@@ -298,7 +298,19 @@ lemma2 t@(Node B k v Nil Nil)
     <=. 2
     ==. 2 * bh t 
     *** QED
-lemma2 t@(Node B k v l r) | col l == B && col r == R
+lemma2 t@(Node B k v Nil r) 
+    =   bh t + rh t
+    ==. 1 + rh t
+    <=. 1 + 1
+    ==. 2 * bh t 
+    *** QED
+lemma2 t@(Node B k v l Nil) 
+    =   bh t + rh t
+    ==. 1 + rh t
+    <=. 1 + 1
+    ==. 2 * bh t 
+    *** QED        
+lemma2 t@(Node B k v l r) | isB l && col r == R
     =   bh t + rh t
     ==. bh l + 1 + rh l
         ? lemma2 l
@@ -380,5 +392,6 @@ height_cost t
 
 {-@ using (Color) as {v: Color | v = R || v = B}           @-}
 {-@ using (RBTree k v) as {v: RBTree k v | Invs v}  @-}
+
 {-@ using (BlackRBT k v ) as {t : BlackRBT k v  | rh t <= bh t} @-}
 

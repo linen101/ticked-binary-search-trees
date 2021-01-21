@@ -122,8 +122,8 @@ del k (Node col key v l r)  =
 -------------------------------------------------------------------------------
 {-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
 {-@ predicate Inv2 V = isRB V => isARB V            @-}
-{-@ predicate IsBlackRBT T = bh T > 0 && IsB T @-}
+{-@ predicate IsBlackRBT T = isRB T && isBH T && bh T > 0 && IsB T @-}
 
-{-@ using (Color) as {v: Color | v = R || v = B}           @-}
+{-@ using (Color) as {v: Color | v = R || v = B}              @-}
 {-@ using (RBTree k v) as {v: RBTree k v | Inv1 v && Inv2 v}  @-}
-
+{-@ invariant {t: BlackRBT k v | rh t <= bh t}                @-}
