@@ -3,10 +3,10 @@
 
 module LLRBTree where
 
-import Functions_Types (max, min, Nat, Maybe(..))
+import Functions_Types (max, min, logComp, logTwotoPower, Nat, Maybe(..))
 import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, log, fmap, (=<<))
 import Log2
-import RBTree(Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right,logComp,logTwotoPower)
+import RBTree(Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right)
 
 import Language.Haskell.Liquid.RTick
 import Language.Haskell.Liquid.RTick.Combinators

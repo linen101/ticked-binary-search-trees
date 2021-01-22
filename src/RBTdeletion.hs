@@ -6,7 +6,7 @@ module RBTdeletion where
 import Functions_Types (max, min, Nat, Maybe(..))
 import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, log, fmap, (=<<))
 import Log2
-import RBTree(Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right, balanceL, balanceR)
+import RBTree(Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, isRBH, left, right, balanceR, balanceL)
 
 import Language.Haskell.Liquid.RTick
 import Language.Haskell.Liquid.RTick.Combinators
@@ -21,12 +21,12 @@ import Language.Haskell.Liquid.RTick.Combinators
 
 
 {-@ makeRed :: t  : BlackRBT k v
-            -> {t' : ARBTN k v {bh t - 1} | size t' > 0} 
+            -> {t' : ARBTN k v {bh t - 1} | size t' > 0 && IsR t'} 
 @-}
 makeRed (Node B k v l r) = Node R k v l r 
 
-{-@ makeBlackD :: t  : ARBT k v
-               -> {t' : RBT k v | size t' = 0 || IsBlackRBT t' }
+{-@ makeBlackD :: t  : ARBT k v 
+               -> {t' : RBT k v | (size t' = 0 || IsBlackRBT t' ) }
 @-}
 makeBlackD Nil              = Nil
 makeBlackD (Node _ k v l r) = Node B k v l r 
@@ -44,7 +44,7 @@ makeBlackD (Node _ k v l r) = Node B k v l r
 @-}
 balL :: Ord k => k -> v -> RBTree k v -> RBTree k v -> RBTree k v
 balL y yv (Node R x xv a b) c                  = Node R y yv (Node B x xv a b) c
-balL x xv bl (Node B y yv a b)                 = balanceR x xv bl (Node R y yv a b) 
+balL x xv bl r@(Node B _ _ _ _)                = balanceR x xv bl (makeRed r) 
 balL x xv bl (Node R z zv (Node B y yv a b) c) = Node R y yv (Node B x xv bl a) (balanceR z zv b (makeRed c))
 
 -- 	Rebalancing function 
@@ -59,7 +59,7 @@ balL x xv bl (Node R z zv (Node B y yv a b) c) = Node R y yv (Node B x xv bl a) 
 @-}
 balR :: Ord k => k -> v -> RBTree k v -> RBTree k v -> RBTree k v
 balR x xv a (Node R y yv b c)                  = Node R x xv a (Node B y yv b c)
-balR y yv (Node B x xv a b) bl                 = balanceL y yv (Node R x xv a b) bl
+balR y yv l@(Node B _ _ _ _) bl                = balanceL y yv (makeRed l) bl
 balR z zv (Node R x xv a (Node B y yv b c)) bl = Node R y yv (balanceL x xv (makeRed a) b) (Node B z zv c bl)
 
 
@@ -89,7 +89,7 @@ merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') <*
 
 {-@ delete :: Ord k => k 
                     -> t : BlackRBT k v 
-                    -> {ti : Tick { t' : (RBT k v) | size t' = 0 || IsBlackRBT t' } 
+                    -> {ti : Tick { t' : (RBT k v) | (size t' = 0 || IsBlackRBT t') } 
                            | tcost ti <= height t}  
 @-}
 delete k t = fmap makeBlackD (del k t)
@@ -116,14 +116,14 @@ del k (Node col key v l r)  =
                 Node B _ _ _ _ -> pure (\r' -> balR key v l r') </> (del k r)
                 _              -> pure (\r' -> Node R key v l r') </> (del k r)
         EQ                     -> step 1 (merge k l r)
-     
+
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
-{-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
-{-@ predicate Inv2 V = isRB V => isARB V            @-}
 {-@ predicate IsBlackRBT T = isRB T && isBH T && bh T > 0 && IsB T @-}
 
+{-@ predicate Inv1 T = (isARB T && IsB T) => isRB T @-}
+{-@ predicate Inv2 T = isRB T => isARB T            @-}
+
 {-@ using (Color) as {v: Color | v = R || v = B}              @-}
-{-@ using (RBTree k v) as {v: RBTree k v | Inv1 v && Inv2 v}  @-}
-{-@ invariant {t: BlackRBT k v | rh t <= bh t}                @-}
+{-@ using (RBTree k v) as {t: RBTree k v | Inv1 t && Inv2 t}  @-}

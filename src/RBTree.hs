@@ -1,11 +1,11 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
 
-module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, left, right, balanceL, balanceR,logComp,logTwotoPower) where
+module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, isRBH, left, right, balanceL, balanceR) where
 
 
-import Functions_Types (max, min, Nat, Maybe(..))
-import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, log, fmap, (=<<))
+import Functions_Types (max, min, Nat, Maybe(..), Ordering (..), compare, logTwotoPower, logComp)
+import Prelude hiding (Applicative(..), Monad(..), Maybe(..), Ordering(..), max, min, log, fmap, (=<<), compare)
 import Log2
 
 import Language.Haskell.Liquid.RTick
@@ -47,8 +47,7 @@ data Color = B | R deriving (Eq,Show)
 
 --   Black rooted Red-Black Trees   --
 
-{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t >0 } @-}
-
+{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t >0  } @-}
 
 -------------------------------------------------------------------------------
 -- | Measures:
@@ -138,7 +137,10 @@ isARB :: RBTree k v -> Bool
 isARB (Nil)            = True
 isARB (Node c k v l r) = isRB l && isRB r
 
-
+{-@ measure isRBH @-}
+isRBH (Nil) = True
+isRBH (Node col k v l r) = isRBH l && isRBH r 
+                        && if col == B then rh l <= bh l && rh r <= bh r else True
 
 ---------------------------------------------------------------------------
 -- | lookup for an element -------------------------------------------------------
@@ -159,12 +161,12 @@ get k' (Node c k v l r)
 ---------------------------------------------------------------------------
 -- | Add an element -------------------------------------------------------
 ---------------------------------------------------------------------------
-
+{-@ reflect makeBlack @-}
 {-@ makeBlack :: {t : RBT k v | size t > 0} -> t': BlackRBT k v @-}
 makeBlack (Node _ k v l r) = Node B k v l r
 
 {-@ set ::  (Ord k) => k -> v  
-            -> t : RBT k v 
+            -> t : BlackRBT k v 
             -> { t' : Tick (BlackRBT k v) 
                     | tcost t' <= height t} 
 @-}
@@ -189,7 +191,7 @@ insert k v (Node R key val l r) = case compare k key of
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-
+{-@ reflect balanceL @-}
 {-@ balanceL :: k:k -> v 
                 -> {l : ARBT {key:k | key < k} v | size l > 0}
                 -> r : RBTN {key:k | k < key} v {bh l} 
@@ -199,7 +201,7 @@ balanceL z zv (Node R y yv (Node R x xv a b) c) d =   ( Node R y yv (Node B x xv
 balanceL z zv (Node R x xv a (Node R y yv b c)) d =   ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
 balanceL k v l r                                  =   (Node B k v l r)
 
-
+{-@ reflect balanceR @-}
 {-@ balanceR :: k:k -> v 
                 -> l : RBT {key:k | key < k} v 
                 -> {r : ARBTN {key:k | k < key} v {bh l} | size r > 0}
@@ -342,19 +344,6 @@ lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l < rh r
     *** QED            
 
 
-
-{-@ assume logTwotoPower :: x : Nat 
-                            -> { log (twoToPower x) == x } 
-@-}
-logTwotoPower :: Int -> Proof
-logTwotoPower _ = assumption
-
-{-@ assume logComp ::   x:Int -> y: Int 
-                        -> { x <= y => log x <= log y } 
-@-}
-logComp :: Int -> Int -> Proof
-logComp _ _ = assumption
-
 {-@ ple height_cost @-}
 {-@ height_cost 
     :: Ord k
@@ -382,8 +371,6 @@ height_cost t
 -------------------------------------------------------------------------------
 {-@ predicate IsB T = not (col T == R) @-}
 {-@ predicate IsR T = not (col T == B) @-}
-
-
 
 {-@ predicate Invs V = Inv1 V && Inv2 V && Inv3 V   @-}
 {-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
