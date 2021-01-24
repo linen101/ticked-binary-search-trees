@@ -36,7 +36,7 @@ data Color = B | R deriving (Eq,Show)
 
 --   Red-Black Trees            --
 
-{-@ type RBT k v    = {v: ARBT k v | isRB v } @-}
+{-@ type RBT k v    = {v: ARBT k v | isRB v && isBH v} @-}
 {-@ type RBTN k v N = {v: RBT k v  | bh v = N }         @-}
 
 
@@ -66,7 +66,8 @@ size (Node _ _ _ l r) = 1 + size l + size r
 
 {-@ measure height @-}
 {-@ height ::   t:RBTree k v 
-                -> {u:Nat | isBH t => u <= rh t + bh t} 
+                -> {u:Nat | (isBH t => u <= rh t + bh t)
+                         && (u >= bh t) } 
 @-}
 height :: RBTree k v -> Int
 height Nil              = 0
@@ -87,7 +88,7 @@ right (Node c k v l r) = r
 
 {-@ measure isB @-}       
 {-@ isB :: RBTree k v -> Bool @-}
-isB (Nil)            = True               --True or False doesnt matter wtf
+isB (Nil)            = False               
 isB (Node c k v l r) = c == B
 
 --  black height of tree  --
@@ -102,7 +103,7 @@ bh (Nil)            = 0
 bh (Node c k v l r) = bh l + if (c == R) then 0 else 1
 
 {-@ measure rh    @-}
-{-@ rh ::   t : RBTree k v -> Nat @-}      
+{-@ rh ::   t : RBTree k v -> n : Nat @-}      
 rh :: RBTree k v -> Int
 rh (Nil)            = 0
 rh (Node c k v l r) = max (rh l) (rh r) + if (c == R) then 1 else 0
@@ -287,6 +288,7 @@ lemma1a t@(Node c k v l' r) l | c == R
     >=. bh t - bh l
     *** QED
 
+
 {-@ ple lemma2 @-}
 {-@ lemma2
     :: Ord k
@@ -299,20 +301,8 @@ lemma2 t@(Node B k v Nil Nil)
     ==. 1 + 0
     <=. 2
     ==. 2 * bh t 
-    *** QED
-lemma2 t@(Node B k v Nil r) 
-    =   bh t + rh t
-    ==. 1 + rh t
-    <=. 1 + 1
-    ==. 2 * bh t 
-    *** QED
-lemma2 t@(Node B k v l Nil) 
-    =   bh t + rh t
-    ==. 1 + rh t
-    <=. 1 + 1
-    ==. 2 * bh t 
-    *** QED        
-lemma2 t@(Node B k v l r) | isB l && col r == R
+    *** QED    
+lemma2 t@(Node B k v l r) | col l == B && col r == R
     =   bh t + rh t
     ==. bh l + 1 + rh l
         ? lemma2 l
@@ -344,15 +334,15 @@ lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l < rh r
     *** QED            
 
 
-{-@ ple height_cost @-}
-{-@ height_cost 
+{-@ ple height_costUB @-}
+{-@ height_costUB
     :: Ord k
     => t : BlackRBT k v
     -> { height t <= 2 * log (size t + 1) } 
     / [height t]
 @-}   
-height_cost :: Ord k => RBTree k v -> Proof
-height_cost t 
+height_costUB :: Ord k => RBTree k v -> Proof
+height_costUB t 
     =   height t
     <=. rh t + bh t
     <=. bh t + bh t
@@ -364,7 +354,17 @@ height_cost t
     <=. 2 * log (size t + 1)  
     *** QED
 
-
+{-@ height_costLB 
+    :: Ord k
+    => t : BlackRBT k v
+    -> { height t >= bh t } 
+    / [height t]
+@-}   
+height_costLB :: Ord k => RBTree k v -> Proof
+height_costLB t 
+    =   height t
+    >=. bh t
+    *** QED
 
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
@@ -380,5 +380,5 @@ height_cost t
 {-@ using (Color) as {v: Color | v = R || v = B}           @-}
 {-@ using (RBTree k v) as {v: RBTree k v | Invs v}  @-}
 
-{-@ using (BlackRBT k v ) as {t : BlackRBT k v  | rh t <= bh t} @-}
+{-@ using (BlackRBT k v ) as {t:BlackRBT k v | rh t <= bh t} @-}
 
