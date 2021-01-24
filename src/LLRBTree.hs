@@ -15,7 +15,7 @@ import Language.Haskell.Liquid.RTick.Combinators
 {-@ type LLRBTN k v N   = {t: RBTN k v N   | isLeftLean t}   @-}
 {-@ type LLARBT k v     = {t: ARBT k v     | isLeftLean t}   @-}
 {-@ type LLARBTN k v N  = {t: ARBTN k v N  | isLeftLean t }  @-}
-{-@ type BlackLLRBT k v = {t: RBT k v      | bh t > 0 && (col t == B) && isLeftLean t }  @-}
+{-@ type BlackLLRBT k v = {t: BlackRBT k v | isLeftLean t }  @-}
 
 {-@ measure isLeftLean @-}
 {-@ isLeftLean :: RBTree k v -> Bool @-}
@@ -145,7 +145,7 @@ lemma2 t@(Node B k v Nil Nil)
     ==. 2 * bh t 
     *** QED
 
-lemma2 t@(Node B k v l r) | col l == R && col r == B
+lemma2 t@(Node B k v l r) | col l == R && col l == B
     =   bh t + rh t
     ==. bh r + 1 + rh r
         ? lemma2 r
@@ -169,15 +169,15 @@ lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l < rh r
     <=. 2 * bh t   
     *** QED 
 
-{-@ ple height_cost @-}
-{-@ height_cost 
+{-@ ple height_costUB @-}
+{-@ height_costUB 
     :: Ord k
     => t : BlackLLRBT k v
     -> { height t <= 2 * log (size t + 1) } 
     / [height t]
 @-}   
-height_cost :: Ord k => RBTree k v -> Proof
-height_cost t 
+height_costUB :: Ord k => RBTree k v -> Proof
+height_costUB t 
     =   height t
     <=. rh t + bh t
     <=. bh t + bh t
@@ -189,6 +189,17 @@ height_cost t
     <=. 2 * log (size t + 1)  
     *** QED
 
+{-@ height_costLB 
+    :: Ord k
+    => t : BlackLLRBT k v
+    -> { height t >= bh t } 
+    / [height t]
+@-}   
+height_costLB :: Ord k => RBTree k v -> Proof
+height_costLB t 
+    =   height t
+    >=. bh t
+    *** QED
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
