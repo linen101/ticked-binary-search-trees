@@ -44,7 +44,7 @@ size (Node _ _ l r) = 1 + size l + size r
 {-@ invariant {t:Tree k v | 0 <= size t} @-}
 
 {-@ measure height @-}
-{-@ height :: Tree k v -> Nat @-}
+{-@ height :: t: Tree k v -> {n:Nat | n <= size t} @-}
 height :: Tree k v -> Int
 height Nil            = 0
 height (Node k v l r) = 1 + max (height l) (height r)
