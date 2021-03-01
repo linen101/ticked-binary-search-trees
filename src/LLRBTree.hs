@@ -27,7 +27,7 @@ isLeftLean (Node c _ _ l r) = isLeftLean l && isLeftLean r
 ---------------------------------------------------------------------------
 -- | Left Leaning Red-Black Trees -----------------------------------------
 ---------------------------------------------------------------------------
-
+{-@ reflect set' @-}
 {-@ set' ::  (Ord k) => k -> v  
             -> t : LLRBT k v 
             -> {t' : Tick (BlackLLRBT k v) | tcost t' <= height t}
@@ -36,9 +36,11 @@ isLeftLean (Node c _ _ l r) = isLeftLean l && isLeftLean r
 
 set' k v s = fmap makeBlack' (insert' k v s)
 
+{-@ reflect makeBlack' @-}
 {-@ makeBlack' :: {t : LLARBT k v | size t > 0} -> BlackLLRBT k v @-}
 makeBlack' (Node _ k v l r) = Node B k v l r
 
+{-@ reflect insert' @-}
 {-@ insert' ::   (Ord k) => k -> v 
                 -> t : LLRBT k v 
                 -> {ti : Tick {t' : (LLARBTN k v {bh t}) | (IsB t => isRB t') && size t' > 0} 
@@ -46,36 +48,40 @@ makeBlack' (Node _ k v l r) = Node B k v l r
 @-}
 insert' :: Ord k => k -> v -> RBTree k v -> Tick (RBTree k v)
 insert' k v Nil                    = pure (Node R k v Nil Nil)
-insert' k v (Node B key val l r) = case compare k key of
-    LT -> pure (\l' -> balanceL' key val l' r) </> (insert' k v l)
-    GT -> pure (\r' -> balanceR' B key val l r') </> (insert' k v r)
-    EQ -> wait (Node B key v l r)
-insert' k v (Node R key val l r) = case compare k key of
-    LT -> pure (\l' -> Node R key val l' r) </> (insert' k v l)
-    GT -> pure (\r' -> balanceR' R key val l r') </> (insert' k v r)
-    EQ -> wait (Node R key v l r)
+insert' k v (Node B key val l r) 
+    | k < key   = step 1 $ eqBind 0 (insert' k v l) (\l' -> balanceL' key val l' r) 
+    | k > key   = step 1 $ eqBind 0 (insert' k v r) (\r' -> balanceR' B key val l r') 
+    | otherwise = wait (Node B key v l r)
+insert' k v (Node R key val l r) 
+    | k < key   = pure (\l' -> Node R key val l' r) </> (insert' k v l)
+    | k > key   = step 1 $ eqBind 0 (insert' k v r) (\r' -> balanceR' R key val l r') 
+    | otherwise = wait (Node R key v l r)
 
+{-@ reflect balanceL' @-}
 {-@ balanceL' :: k:k -> v 
                 -> {l : LLARBT {key:k | key < k} v |  size l >0 }
                 -> {r : LLRBTN {key:k | k < key} v {bh l} | IsB r}
-                -> {t : LLRBTN k v {bh l+1} | size t > 0}
+                -> t' : { Tick {t : (LLRBTN k v {bh l+1}) | size t > 0}
+                        | tcost t' == 0 }
 
 @-}
-balanceL' :: k -> v -> RBTree k v -> RBTree k v -> RBTree k v
-balanceL' z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceL' x xv a b                                 = Node B x xv a b
+balanceL' :: k -> v -> RBTree k v -> RBTree k v -> Tick (RBTree k v)
+balanceL' z zv (Node R y yv (Node R x xv a b) c) d = pure (Node R y yv (Node B x xv a b) (Node B z zv c d))
+balanceL' x xv a b                                 = pure (Node B x xv a b)
 
+{-@ reflect balanceR' @-}
 {-@ balanceR' :: c:Color -> k:k -> v 
                 -> {l : LLRBT {key:k | key < k} v | c == R =>  IsB l }
                 -> {r : LLRBTN {key:k | k < key} v {bh l} |  (c == R => isRB r) && size r > 0 }
-                -> {t : LLARBT k v | (if (c==B || IsB r) then (bh t = bh l + 1) else (bh t = bh l))
+                -> t' : { Tick {t : (LLARBT k v )| (if (c==B || IsB r) then (bh t = bh l + 1) else (bh t = bh l))
                                    && ((c == B) => isRB t)
                                    && size t > 0}
+                        | tcost t' == 0 }           
 @-}
-balanceR' :: Color -> k -> v -> RBTree k v -> RBTree k v -> RBTree k v
-balanceR' B y yv (Node R x xv a b) (Node R z zv c d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
-balanceR' col y yv x (Node R z zv c d)               = Node col z zv (Node R y yv x c) d 
-balanceR' col x xv a b                               = Node B x xv a b  
+balanceR' :: Color -> k -> v -> RBTree k v -> RBTree k v -> Tick ( RBTree k v)
+balanceR' B y yv (Node R x xv a b) (Node R z zv c d) = pure (Node R y yv (Node B x xv a b) (Node B z zv c d))
+balanceR' col y yv x (Node R z zv c d)               = pure (Node col z zv (Node R y yv x c) d )
+balanceR' col x xv a b                               = pure (Node B x xv a b)  
 -- 
 
 
@@ -189,17 +195,24 @@ height_costUB t
     <=. 2 * log (size t + 1)  
     *** QED
 
-{-@ height_costLB 
+{-@ ple set'_costUB @-}
+{-@ set'_costUB
     :: Ord k
-    => t : BlackLLRBT k v
-    -> { height t >= bh t } 
+    => k : k
+    -> v:v
+    -> t : BlackLLRBT k v
+    -> { tcost (set' k v t) <= 2 * log (size t + 1) } 
     / [height t]
-@-}   
-height_costLB :: Ord k => RBTree k v -> Proof
-height_costLB t 
-    =   height t
-    >=. bh t
+@-} 
+set'_costUB :: Ord k => k -> v -> RBTree k v -> Proof
+set'_costUB k v t 
+    =   tcost (set' k v t)
+    <=. height t
+      ? height_costUB t
+    <=. 2 * log (size t + 1)  
     *** QED
+
+   
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------

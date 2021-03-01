@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
 
-module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, isRBH, left, right, balanceL, balanceR) where
+module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, isRBH, left, right, balanceL, balanceR, height_costUB) where
 
 
 import Functions_Types (max, min, Nat, Maybe(..), Ordering (..), compare, logTwotoPower, logComp)
@@ -166,6 +166,7 @@ get k' (Node c k v l r)
 {-@ makeBlack :: {t : RBT k v | size t > 0} -> t': BlackRBT k v @-}
 makeBlack (Node _ k v l r) = Node B k v l r
 
+{-@ reflect set @-}
 {-@ set ::  (Ord k) => k -> v  
             -> t : BlackRBT k v 
             -> { t' : Tick (BlackRBT k v) 
@@ -173,20 +174,21 @@ makeBlack (Node _ k v l r) = Node B k v l r
 @-}
 set k v s = fmap makeBlack (insert k v s)
 
+{-@ reflect insert @-}
 {-@ insert ::   (Ord k) => k -> v 
                 -> t : RBT k v 
                 -> { t' : Tick { ts : (RBTN k v {bh t}) | size ts > 0} 
                         | tcost t' <= height t } 
 @-}
 insert k v Nil                  = wait (Node R k v Nil Nil)
-insert k v (Node B key val l r) = case compare k key of
-                              LT -> step 1 $ eqBind 0 (insert k v l) (\l' -> balanceL key val l' r)
-                              GT -> step 1 $ eqBind 0 (insert k v r) (\r' -> balanceR key val l r')
-                              EQ -> wait (Node B key v l r)
-insert k v (Node R key val l r) = case compare k key of
-                              LT -> pure (\l' -> Node R key val l' r) </> (insert k v l)
-                              GT -> pure (\r' -> Node R key val l r') </> (insert k v r)
-                              EQ -> wait (Node R key v l r)
+insert k v (Node B key val l r) 
+    | k < key   = step 1 $ eqBind 0 (insert k v l) (\l' -> balanceL key val l' r)
+    | k > key   = step 1 $ eqBind 0 (insert k v r) (\r' -> balanceR key val l r')
+    | otherwise = wait (Node B key v l r)
+insert k v (Node R key val l r)     
+    | k < key   = pure (\l' -> Node R key val l' r) </> (insert k v l)
+    | k > key   = pure (\r' -> Node R key val l r') </> (insert k v r)
+    | otherwise = wait (Node R key v l r)
 
 ---------------------------------------------------------------------------
 -- | Rotations ------------------------------------------------------------
@@ -356,18 +358,38 @@ height_costUB t
     <=. 2 * log (size t + 1)  
     *** QED
 
-{-@ height_costLB 
+{-@ ple set_costUB @-}
+{-@ set_costUB
     :: Ord k
-    => t : BlackRBT k v
-    -> { height t >= bh t } 
+    => k : k
+    -> v:v
+    -> t : BlackRBT k v
+    -> { tcost (set k v t) <= 2 * log (size t + 1) } 
     / [height t]
-@-}   
-height_costLB :: Ord k => RBTree k v -> Proof
-height_costLB t 
-    =   height t
-    >=. bh t
+@-} 
+set_costUB :: Ord k => k -> v -> RBTree k v -> Proof
+set_costUB k v t 
+    =   tcost (set k v t)
+    <=. height t
+      ? height_costUB t
+    <=. 2 * log (size t + 1)  
     *** QED
 
+{-@ ple get_costUB @-}
+{-@ get_costUB
+    :: Ord k
+    => k : k
+    -> t : BlackRBT k v
+    -> { tcost (get k t) <= 2 * log (size t + 1) } 
+    / [height t]
+@-} 
+get_costUB :: Ord k => k -> RBTree k v -> Proof
+get_costUB k t 
+    =   tcost (get k t)
+    <=. height t
+      ? height_costUB t
+    <=. 2 * log (size t + 1)  
+    *** QED    
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
