@@ -27,9 +27,21 @@ isLeftLean (Node c _ _ l r) = isLeftLean l && isLeftLean r
 ---------------------------------------------------------------------------
 -- | Left Leaning Red-Black Trees -----------------------------------------
 ---------------------------------------------------------------------------
+{-@ reflect get' @-}
+{-@ get' ::  Ord k => k:k 
+            -> {ts : LLRBT k v | (IsBlackLLRBT ts) || size ts ==0}
+            -> { t:Tick (Maybe v) | tcost t <= height ts } 
+@-}
+get' :: Ord k => k -> RBTree k v -> Tick (Maybe v)
+get' _ Nil    = pure Nothing
+get' k' (Node c k v l r)
+    | k' < k     = step 1 (get' k' l)
+    | k' > k     = step 1 (get' k' r)
+    | otherwise  = wait (Just v)
+
 {-@ reflect set' @-}
 {-@ set' ::  (Ord k) => k -> v  
-            -> t : LLRBT k v 
+            -> { t : LLRBT k v | IsBlackLLRBT t || size t == 0}
             -> {t' : Tick (BlackLLRBT k v) | tcost t' <= height t}
                     
 @-}
@@ -200,7 +212,7 @@ height_costUB t
     :: Ord k
     => k : k
     -> v:v
-    -> t : BlackLLRBT k v
+    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
     -> { tcost (set' k v t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -212,6 +224,21 @@ set'_costUB k v t
     <=. 2 * log (size t + 1)  
     *** QED
 
+{-@ ple get'_costUB @-}
+{-@ get'_costUB
+    :: Ord k
+    => k : k
+    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
+    -> { tcost (get' k t) <= 2 * log (size t + 1) } 
+    / [height t]
+@-} 
+get'_costUB :: Ord k => k -> RBTree k v -> Proof
+get'_costUB k t 
+    =   tcost (get' k t)
+    <=. height t
+      ? height_costUB t
+    <=. 2 * log (size t + 1)  
+    *** QED
    
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
@@ -221,7 +248,7 @@ set'_costUB k v t
 {-@ predicate Invb V = (isARB V && IsB V) => isRB V @-}
 {-@ predicate Invc V = (isARB V && IsR V && IsB (left V) && IsB (right V)) => isRB V  @-}
 {-@ predicate Invd V = 0 <= bh V                    @-}
-{-@ predicate IsBlackLLRBT T = isRB T && isBH T && bh T > 0 && IsB T && isLeftLean T @-}
+{-@ predicate IsBlackLLRBT T = bh T > 0 && IsB T @-}
 
 {-@ using (RBTree k v) as {t: RBTree k v | Inva t && Invb t && Invc t && Invd t} @-}
 {-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | rh t <= bh t} @-}

@@ -149,7 +149,7 @@ isRBH (Node col k v l r) = isRBH l && isRBH r
 
 {-@ reflect get @-}
 {-@ get ::  Ord k => k:k 
-            -> ts: RBT k v
+            -> {ts : RBT k v | (IsBlackRBT ts) || size ts ==0}
             -> { t:Tick (Maybe v) | tcost t <= height ts } 
 @-}
 get :: Ord k => k -> RBTree k v -> Tick (Maybe v)
@@ -168,7 +168,7 @@ makeBlack (Node _ k v l r) = Node B k v l r
 
 {-@ reflect set @-}
 {-@ set ::  (Ord k) => k -> v  
-            -> t : BlackRBT k v 
+            -> {t : RBT k v | IsBlackRBT t || size t == 0}
             -> { t' : Tick (BlackRBT k v) 
                     | tcost t' <= height t} 
 @-}
@@ -341,7 +341,7 @@ lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l < rh r
 {-@ ple height_costUB @-}
 {-@ height_costUB
     :: Ord k
-    => t : BlackRBT k v
+    => {t : RBT k v | IsBlackRBT t || size t == 0}
     -> { height t <= 2 * log (size t + 1) } 
     / [height t]
 @-}   
@@ -363,7 +363,7 @@ height_costUB t
     :: Ord k
     => k : k
     -> v:v
-    -> t : BlackRBT k v
+    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
     -> { tcost (set k v t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -379,7 +379,7 @@ set_costUB k v t
 {-@ get_costUB
     :: Ord k
     => k : k
-    -> t : BlackRBT k v
+    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
     -> { tcost (get k t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -395,6 +395,7 @@ get_costUB k t
 -------------------------------------------------------------------------------
 {-@ predicate IsB T = not (col T == R) @-}
 {-@ predicate IsR T = not (col T == B) @-}
+{-@ predicate IsBlackRBT T =  bh T > 0 && IsB T @-}
 
 {-@ predicate Invs V = Inv1 V && Inv2 V && Inv3 V   @-}
 {-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}

@@ -94,7 +94,7 @@ merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') <*
     
 {-@ reflect delete @-}
 {-@ delete :: Ord k => k 
-                    -> t : BlackRBT k v 
+                    -> {t : RBT k v | (IsBlackRBT t) || size t == 0} 
                     -> {ti : Tick { t' : (RBT k v) | (size t' = 0 || IsBlackRBT t') } 
                            | tcost ti <= height t}  
 @-}
@@ -126,7 +126,7 @@ del k (Node col key v l r)
 {-@ delete_costUB
     :: Ord k
     => k : k
-    -> t : BlackRBT k v
+    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
     -> { tcost (delete k t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
