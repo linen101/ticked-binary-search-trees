@@ -47,7 +47,7 @@ data Color = B | R deriving (Eq,Show)
 
 --   Black rooted Red-Black Trees   --
 
-{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t >0  } @-}
+{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t >0 } @-} 
 
 -------------------------------------------------------------------------------
 -- | Measures:
@@ -149,11 +149,11 @@ isRBH (Node col k v l r) = isRBH l && isRBH r
 
 {-@ reflect get @-}
 {-@ get ::  Ord k => k:k 
-            -> {ts : RBT k v | (IsBlackRBT ts) || size ts ==0}
+            -> ts : RBT k v  
             -> { t:Tick (Maybe v) | tcost t <= height ts } 
 @-}
 get :: Ord k => k -> RBTree k v -> Tick (Maybe v)
-get _ Nil    = pure Nothing
+get _ Nil        = pure Nothing
 get k' (Node c k v l r)
     | k' < k     = step 1 (get k' l)
     | k' > k     = step 1 (get k' r)
@@ -168,7 +168,7 @@ makeBlack (Node _ k v l r) = Node B k v l r
 
 {-@ reflect set @-}
 {-@ set ::  (Ord k) => k -> v  
-            -> {t : RBT k v | IsBlackRBT t || size t == 0}
+            -> t : RBT k v 
             -> { t' : Tick (BlackRBT k v) 
                     | tcost t' <= height t} 
 @-}
@@ -180,7 +180,7 @@ set k v s = fmap makeBlack (insert k v s)
                 -> { t' : Tick { ts : (RBTN k v {bh t}) | size ts > 0} 
                         | tcost t' <= height t } 
 @-}
-insert k v Nil                  = wait (Node R k v Nil Nil)
+insert k v Nil                  = pure (Node R k v Nil Nil)
 insert k v (Node B key val l r) 
     | k < key   = step 1 $ eqBind 0 (insert k v l) (\l' -> balanceL key val l' r)
     | k > key   = step 1 $ eqBind 0 (insert k v r) (\r' -> balanceR key val l r')
@@ -266,82 +266,14 @@ lemma1 t@(Node B k v l r)
     <=. size l + 1 + size r + 1    
     ==. size t + 1
     *** QED 
- 
 
-{-@ ple lemma1a @-}
-{-@ lemma1a
-    :: Ord k
-    => {t:RBT k v | size t >0 }
-    -> {l:RBT k v | l == left t}
-    -> { 1 >= bh t - bh l }
-@-}
-lemma1a :: Ord k => RBTree k v -> RBTree k v -> Proof
-lemma1a t@(Node c k v l' r) l | c == B
-    =   1
-    ==. 1 + bh t - bh t
-    ==. 1 + bh t - (bh l + 1)
-    ==. bh t - bh l
-    >=. bh t - bh l
-    *** QED
-
-lemma1a t@(Node c k v l' r) l | c == R
-    =   1
-    ==. 1 + bh t - bh t
-    ==. 1 + bh t - (bh l + 0)
-    ==. bh t - bh l + 1
-    >=. bh t - bh l
-    *** QED
-
-
-{-@ ple lemma2 @-}
-{-@ lemma2
-    :: Ord k
-    => t: BlackRBT k v
-    -> {bh t + rh t <= 2 * bh t}
-@-}
-lemma2 :: Ord k => RBTree k v -> Proof
-lemma2 t@(Node B k v Nil Nil) 
-    =   bh t + rh t
-    ==. 1 + 0
-    <=. 2
-    ==. 2 * bh t 
-    *** QED    
-lemma2 t@(Node B k v l r) | col l == B && col r == R
-    =   bh t + rh t
-    ==. bh l + 1 + rh l
-        ? lemma2 l
-    <=. 2 * bh l + 1
-    <=. 2 * bh t   
-    *** QED
-lemma2 t@(Node B k v l r) | col l == R && col r == B
-    =   bh t + rh t
-    ==. bh r + 1 + rh r
-        ? lemma2 r
-    <=. 2 * bh r + 1
-    ==. 2 * bh l + 1
-    <=. 2 * bh t   
-    *** QED
-lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l >= rh r
-    =   bh t + rh t
-    ==. bh l + 1 + rh l
-        ? lemma2 l
-    <=. 2 * bh l + 1
-    <=. 2 * bh t   
-    *** QED
-lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l < rh r
-    =   bh t + rh t
-    ==. bh r + 1 + rh r
-        ? lemma2 r
-    <=. 2 * bh r + 1
-    ==. 2 * bh l + 1
-    <=. 2 * bh t   
-    *** QED            
-
-
+-------------------------------------------------------------------------------
+-- Cost Proof -------------------------------------------------------
+-------------------------------------------------------------------------------
 {-@ ple height_costUB @-}
 {-@ height_costUB
     :: Ord k
-    => {t : RBT k v | IsBlackRBT t || size t == 0}
+    => t : RBT k v 
     -> { height t <= 2 * log (size t + 1) } 
     / [height t]
 @-}   
@@ -363,7 +295,7 @@ height_costUB t
     :: Ord k
     => k : k
     -> v:v
-    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
+    -> t : RBT k v  
     -> { tcost (set k v t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -379,7 +311,7 @@ set_costUB k v t
 {-@ get_costUB
     :: Ord k
     => k : k
-    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
+    -> t : RBT k v 
     -> { tcost (get k t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -390,12 +322,13 @@ get_costUB k t
       ? height_costUB t
     <=. 2 * log (size t + 1)  
     *** QED    
+
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
 {-@ predicate IsB T = not (col T == R) @-}
 {-@ predicate IsR T = not (col T == B) @-}
-{-@ predicate IsBlackRBT T =  bh T > 0 && IsB T @-}
+{-@ predicate IsBlackRBT T =  bh T > 0 && IsB T  @-} 
 
 {-@ predicate Invs V = Inv1 V && Inv2 V && Inv3 V   @-}
 {-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
@@ -405,5 +338,5 @@ get_costUB k t
 {-@ using (Color) as {v: Color | v = R || v = B}           @-}
 {-@ using (RBTree k v) as {v: RBTree k v | Invs v}  @-}
 
-{-@ using (BlackRBT k v ) as {t:BlackRBT k v | rh t <= bh t} @-}
+{-@ using (BlackRBT k v ) as {t:BlackRBT k v | rh t <= bh t} @-} 
 

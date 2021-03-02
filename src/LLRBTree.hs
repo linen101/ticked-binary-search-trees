@@ -24,12 +24,17 @@ isLeftLean Nil              = True
 isLeftLean (Node c _ _ l r) = isLeftLean l && isLeftLean r
                            && (col r == B)
 
+
 ---------------------------------------------------------------------------
 -- | Left Leaning Red-Black Trees -----------------------------------------
 ---------------------------------------------------------------------------
+
+---------------------------------------------------------------------------
+-- | lookup for an element -------------------------------------------------------
+---------------------------------------------------------------------------
 {-@ reflect get' @-}
 {-@ get' ::  Ord k => k:k 
-            -> {ts : LLRBT k v | (IsBlackLLRBT ts) || size ts ==0}
+            -> ts : LLRBT k v 
             -> { t:Tick (Maybe v) | tcost t <= height ts } 
 @-}
 get' :: Ord k => k -> RBTree k v -> Tick (Maybe v)
@@ -39,18 +44,22 @@ get' k' (Node c k v l r)
     | k' > k     = step 1 (get' k' r)
     | otherwise  = wait (Just v)
 
+
+---------------------------------------------------------------------------
+-- | Add an element -------------------------------------------------------
+---------------------------------------------------------------------------
+{-@ reflect makeBlack' @-}
+{-@ makeBlack' :: {t : LLARBT k v | size t > 0} -> BlackLLRBT k v @-}
+makeBlack' (Node _ k v l r) = Node B k v l r
+
 {-@ reflect set' @-}
 {-@ set' ::  (Ord k) => k -> v  
-            -> { t : LLRBT k v | IsBlackLLRBT t || size t == 0}
+            -> t : LLRBT k v 
             -> {t' : Tick (BlackLLRBT k v) | tcost t' <= height t}
                     
 @-}
 
 set' k v s = fmap makeBlack' (insert' k v s)
-
-{-@ reflect makeBlack' @-}
-{-@ makeBlack' :: {t : LLARBT k v | size t > 0} -> BlackLLRBT k v @-}
-makeBlack' (Node _ k v l r) = Node B k v l r
 
 {-@ reflect insert' @-}
 {-@ insert' ::   (Ord k) => k -> v 
@@ -69,6 +78,9 @@ insert' k v (Node R key val l r)
     | k > key   = step 1 $ eqBind 0 (insert' k v r) (\r' -> balanceR' R key val l r') 
     | otherwise = wait (Node R key v l r)
 
+---------------------------------------------------------------------------
+-- | Rotations ------------------------------------------------------------
+---------------------------------------------------------------------------
 {-@ reflect balanceL' @-}
 {-@ balanceL' :: k:k -> v 
                 -> {l : LLARBT {key:k | key < k} v |  size l >0 }
@@ -149,48 +161,12 @@ lemma1 t@(Node B k v l r)
     *** QED 
 
 
-{-@ ple lemma2 @-}
-{-@ lemma2
-    :: Ord k
-    => t: BlackLLRBT k v
-    -> {bh t + rh t <= 2 * bh t}
-@-}
-lemma2 :: Ord k => RBTree k v -> Proof
-lemma2 t@(Node B k v Nil Nil) 
-    =   bh t + rh t
-    ==. 1 + 0
-    <=. 2
-    ==. 2 * bh t 
-    *** QED
 
-lemma2 t@(Node B k v l r) | col l == R && col l == B
-    =   bh t + rh t
-    ==. bh r + 1 + rh r
-        ? lemma2 r
-    <=. 2 * bh r + 1
-    ==. 2 * bh l + 1
-    <=. 2 * bh t   
-    *** QED
-lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l >= rh r
-    =   bh t + rh t
-    ==. bh l + 1 + rh l
-        ? lemma2 l
-    <=. 2 * bh l + 1
-    <=. 2 * bh t   
-    *** QED
-lemma2 t@(Node B k v l r) | col l == B && col r == B && rh l < rh r
-    =   bh t + rh t
-    ==. bh r + 1 + rh r
-        ? lemma2 r
-    <=. 2 * bh r + 1
-    ==. 2 * bh l + 1
-    <=. 2 * bh t   
-    *** QED 
 
 {-@ ple height_costUB @-}
 {-@ height_costUB 
     :: Ord k
-    => t : BlackLLRBT k v
+    => t : LLRBT k v
     -> { height t <= 2 * log (size t + 1) } 
     / [height t]
 @-}   
@@ -212,7 +188,7 @@ height_costUB t
     :: Ord k
     => k : k
     -> v:v
-    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
+    -> t : RBT k v 
     -> { tcost (set' k v t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -228,7 +204,7 @@ set'_costUB k v t
 {-@ get'_costUB
     :: Ord k
     => k : k
-    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
+    -> t : RBT k v 
     -> { tcost (get' k t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -248,7 +224,6 @@ get'_costUB k t
 {-@ predicate Invb V = (isARB V && IsB V) => isRB V @-}
 {-@ predicate Invc V = (isARB V && IsR V && IsB (left V) && IsB (right V)) => isRB V  @-}
 {-@ predicate Invd V = 0 <= bh V                    @-}
-{-@ predicate IsBlackLLRBT T = bh T > 0 && IsB T @-}
 
 {-@ using (RBTree k v) as {t: RBTree k v | Inva t && Invb t && Invc t && Invd t} @-}
 {-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | rh t <= bh t} @-}

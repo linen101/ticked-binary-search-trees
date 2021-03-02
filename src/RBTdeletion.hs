@@ -13,6 +13,9 @@ import Language.Haskell.Liquid.RTick.Combinators
 
 {-@ type ORBTN k v N = {v: ORBT k v  | bh v = N }         @-}
 
+-------------------------------------------------------------------------------
+-- Color change -------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -- reduce the black height of the subtree c by reddening the node. 
 -- This operation should only be called on BlackRBT. 
@@ -32,6 +35,43 @@ makeRed (Node _ k v l r) = Node R k v l r
 makeBlackD Nil              = Nil
 makeBlackD (Node _ k v l r) = Node B k v l r 
 
+-------------------------------------------------------------------------------
+-- Delete -------------------------------------------------------
+-------------------------------------------------------------------------------
+
+{-@ reflect delete @-}
+{-@ delete :: Ord k => k 
+                    -> t : RBT k v 
+                    -> {ti : Tick { t' : (RBT k v) | (size t' = 0 || IsBlackRBT t') } 
+                           | tcost ti <= height t}  
+@-}
+delete k t = fmap makeBlackD (del k t)
+
+-- termination -> decreasing parameter height t
+{-@ reflect del @-}
+{-@ del :: Ord k => k 
+           -> t : RBT k v 
+           -> { ti : Tick {t' : (ARBT k v) | (if (IsB t && size t>0) then bh t' = bh t - 1 else bh t' = bh t ) 
+                            && (not (IsB t) => isRB t') }
+                   | tcost ti <= height t }
+           / [height t]
+@-}
+del :: Ord k => k -> RBTree k v -> Tick (RBTree k v)
+del k Nil                   = pure Nil
+del k (Node col key v l r) 
+    | k < key   = case l of
+            Nil            -> wait (Node R key v Nil r)
+            Node B _ _ _ _ -> step 1 $ eqBind 0 (del k l) (\l' -> balL key v l' r)  
+            _              -> pure (\l' -> Node R key v l' r) </> (del k l) 
+    | k > key   = case r of
+                Nil            -> wait (Node R key v l Nil)
+                Node B _ _ _ _ -> step 1 $ eqBind 0 (del k r) (\r' -> balR key v l r')
+                _              -> pure (\r' -> Node R key v l r') </> (del k r)
+    | otherwise  = step 1 (merge k l r)
+
+-------------------------------------------------------------------------------
+-- Rotations -------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -- 	Rebalancing function 
 --  after a deletion from a left subtree 
@@ -67,6 +107,9 @@ balR x xv a (Node R y yv b c)                  = pure ( Node R x xv a (Node B y 
 balR y yv l@(Node B _ _ _ _) bl                = balanceL y yv (makeRed l) bl 
 balR z zv (Node R x xv a (Node B y yv b c)) bl = pure ( \l -> Node R y yv l (Node B z zv c bl) ) <*> (balanceL x xv (makeRed a) b)
 
+-------------------------------------------------------------------------------
+-- Merge -------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -- merge 2 trees 
 -- with same bh
@@ -92,41 +135,15 @@ merge k (Node B x xv a b) (Node B y yv c d) = step 1 $ eqBind 0 (merge k b c) (\
 merge k a (Node R x xv b c)                 =  pure (\l' -> Node R x xv l' c) <*> (merge k a b)    -- IsB l && IsB r => isRB t
 merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') <*> (merge k b c)     -- IsB l && IsB r => isRB t   		
     
-{-@ reflect delete @-}
-{-@ delete :: Ord k => k 
-                    -> {t : RBT k v | (IsBlackRBT t) || size t == 0} 
-                    -> {ti : Tick { t' : (RBT k v) | (size t' = 0 || IsBlackRBT t') } 
-                           | tcost ti <= height t}  
-@-}
-delete k t = fmap makeBlackD (del k t)
-
--- termination -> decreasing parameter height t
-{-@ reflect del @-}
-{-@ del :: Ord k => k 
-           -> t : RBT k v 
-           -> { ti : Tick {t' : (ARBT k v) | (if (IsB t && size t>0) then bh t' = bh t - 1 else bh t' = bh t ) 
-                            && (not (IsB t) => isRB t') }
-                   | tcost ti <= height t }
-           / [height t]
-@-}
-del :: Ord k => k -> RBTree k v -> Tick (RBTree k v)
-del k Nil                   = pure Nil
-del k (Node col key v l r) 
-    | k < key   = case l of
-            Nil            -> wait (Node R key v Nil r)
-            Node B _ _ _ _ -> step 1 $ eqBind 0 (del k l) (\l' -> balL key v l' r)  
-            _              -> pure (\l' -> Node R key v l' r) </> (del k l) 
-    | k > key   = case r of
-                Nil            -> wait (Node R key v l Nil)
-                Node B _ _ _ _ -> step 1 $ eqBind 0 (del k r) (\r' -> balR key v l r')
-                _              -> pure (\r' -> Node R key v l r') </> (del k r)
-    | otherwise  = step 1 (merge k l r)
+-------------------------------------------------------------------------------
+-- Cost Proof -------------------------------------------------------
+-------------------------------------------------------------------------------
 
 {-@ ple delete_costUB @-}
 {-@ delete_costUB
     :: Ord k
     => k : k
-    -> {t : RBT k v | IsBlackRBT t || size t ==0 }
+    -> t : RBT k v
     -> { tcost (delete k t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
