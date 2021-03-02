@@ -42,7 +42,7 @@ makeBlackD (Node _ k v l r) = Node B k v l r
 {-@ reflect delete @-}
 {-@ delete :: Ord k => k 
                     -> t : RBT k v 
-                    -> {ti : Tick { t' : (RBT k v) | (size t' = 0 || IsBlackRBT t') } 
+                    -> {ti : Tick  {t' : (RBT k v) | (size t' = 0 || IsBlackRBT t') }
                            | tcost ti <= height t}  
 @-}
 delete k t = fmap makeBlackD (del k t)
@@ -143,7 +143,7 @@ merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') <*
 {-@ delete_costUB
     :: Ord k
     => k : k
-    -> t : RBT k v
+    -> t : BlackRBT k v
     -> { tcost (delete k t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 

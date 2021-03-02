@@ -169,7 +169,7 @@ makeBlack (Node _ k v l r) = Node B k v l r
 {-@ reflect set @-}
 {-@ set ::  (Ord k) => k -> v  
             -> t : RBT k v 
-            -> { t' : Tick (BlackRBT k v) 
+            -> { t' : Tick (RBT k v) 
                     | tcost t' <= height t} 
 @-}
 set k v s = fmap makeBlack (insert k v s)
@@ -270,10 +270,14 @@ lemma1 t@(Node B k v l r)
 -------------------------------------------------------------------------------
 -- Cost Proof -------------------------------------------------------
 -------------------------------------------------------------------------------
+{-@ assume rh_bh :: t:BlackRBT k v-> { rh t <= bh t } @-}
+rh_bh :: RBTree k v -> Proof
+rh_bh _ = assumption
+
 {-@ ple height_costUB @-}
 {-@ height_costUB
     :: Ord k
-    => t : RBT k v 
+    => t : BlackRBT k v 
     -> { height t <= 2 * log (size t + 1) } 
     / [height t]
 @-}   
@@ -281,6 +285,7 @@ height_costUB :: Ord k => RBTree k v -> Proof
 height_costUB t 
     =   height t
     <=. rh t + bh t
+    ? toProof (rh_bh t)
     <=. bh t + bh t
     ==. 2 * bh t
       ? toProof (logTwotoPower (bh t))
@@ -295,7 +300,7 @@ height_costUB t
     :: Ord k
     => k : k
     -> v:v
-    -> t : RBT k v  
+    -> t : BlackRBT k v  
     -> { tcost (set k v t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -311,7 +316,7 @@ set_costUB k v t
 {-@ get_costUB
     :: Ord k
     => k : k
-    -> t : RBT k v 
+    -> t : BlackRBT k v 
     -> { tcost (get k t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -322,7 +327,6 @@ get_costUB k t
       ? height_costUB t
     <=. 2 * log (size t + 1)  
     *** QED    
-
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -337,6 +341,4 @@ get_costUB k t
 
 {-@ using (Color) as {v: Color | v = R || v = B}           @-}
 {-@ using (RBTree k v) as {v: RBTree k v | Invs v}  @-}
-
-{-@ using (BlackRBT k v ) as {t:BlackRBT k v | rh t <= bh t} @-} 
-
+{-@ using (BlackRBT k v) as {t:BlackRBT k v | rh t <= bh t}@-}

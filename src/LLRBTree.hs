@@ -97,7 +97,7 @@ balanceL' x xv a b                                 = pure (Node B x xv a b)
 {-@ balanceR' :: c:Color -> k:k -> v 
                 -> {l : LLRBT {key:k | key < k} v | c == R =>  IsB l }
                 -> {r : LLRBTN {key:k | k < key} v {bh l} |  (c == R => isRB r) && size r > 0 }
-                -> t' : { Tick {t : (LLARBT k v )| (if (c==B || IsB r) then (bh t = bh l + 1) else (bh t = bh l))
+                -> t' : { Tick {t : (LLARBT k v )| (if (c==B ) then (bh t = bh l + 1) else (bh t = bh l))
                                    && ((c == B) => isRB t)
                                    && size t > 0}
                         | tcost t' == 0 }           
@@ -105,7 +105,7 @@ balanceL' x xv a b                                 = pure (Node B x xv a b)
 balanceR' :: Color -> k -> v -> RBTree k v -> RBTree k v -> Tick ( RBTree k v)
 balanceR' B y yv (Node R x xv a b) (Node R z zv c d) = pure (Node R y yv (Node B x xv a b) (Node B z zv c d))
 balanceR' col y yv x (Node R z zv c d)               = pure (Node col z zv (Node R y yv x c) d )
-balanceR' col x xv a b                               = pure (Node B x xv a b)  
+balanceR' col x xv a b                               = pure (Node col x xv a b)  
 -- 
 
 
@@ -162,11 +162,17 @@ lemma1 t@(Node B k v l r)
 
 
 
+-------------------------------------------------------------------------------
+-- Cost Proof -------------------------------------------------------
+-------------------------------------------------------------------------------
+{-@ assume rh_bh :: t:BlackLLRBT k v-> { rh t <= bh t } @-}
+rh_bh :: RBTree k v -> Proof
+rh_bh _ = assumption
 
 {-@ ple height_costUB @-}
 {-@ height_costUB 
     :: Ord k
-    => t : LLRBT k v
+    => t : BlackLLRBT k v
     -> { height t <= 2 * log (size t + 1) } 
     / [height t]
 @-}   
@@ -174,6 +180,7 @@ height_costUB :: Ord k => RBTree k v -> Proof
 height_costUB t 
     =   height t
     <=. rh t + bh t
+    ? toProof (rh_bh t)
     <=. bh t + bh t
     ==. 2 * bh t
       ? toProof (logTwotoPower (bh t))
@@ -188,7 +195,7 @@ height_costUB t
     :: Ord k
     => k : k
     -> v:v
-    -> t : RBT k v 
+    -> t : BlackLLRBT k v 
     -> { tcost (set' k v t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -204,7 +211,7 @@ set'_costUB k v t
 {-@ get'_costUB
     :: Ord k
     => k : k
-    -> t : RBT k v 
+    -> t : BlackLLRBT k v 
     -> { tcost (get' k t) <= 2 * log (size t + 1) } 
     / [height t]
 @-} 
@@ -215,7 +222,7 @@ get'_costUB k t
       ? height_costUB t
     <=. 2 * log (size t + 1)  
     *** QED
-   
+
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -226,4 +233,3 @@ get'_costUB k t
 {-@ predicate Invd V = 0 <= bh V                    @-}
 
 {-@ using (RBTree k v) as {t: RBTree k v | Inva t && Invb t && Invc t && Invd t} @-}
-{-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | rh t <= bh t} @-}
