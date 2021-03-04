@@ -1,5 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
+{-@ LIQUID "--exact-data-con" @-}
+
 
 module LLRBTree where
 
@@ -11,11 +13,15 @@ import RBTree(Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, 
 import Language.Haskell.Liquid.RTick
 import Language.Haskell.Liquid.RTick.Combinators
 
-{-@ type LLRBT k v      = {t: RBT k v      | isLeftLean t}   @-}
-{-@ type LLRBTN k v N   = {t: RBTN k v N   | isLeftLean t}   @-}
-{-@ type LLARBT k v     = {t: ARBT k v     | isLeftLean t}   @-}
-{-@ type LLARBTN k v N  = {t: ARBTN k v N  | isLeftLean t }  @-}
-{-@ type BlackLLRBT k v = {t: BlackRBT k v | isLeftLean t }  @-}
+---------------------------------------------------------------------------
+-- | Left Leaning Red-Black Trees -----------------------------------------
+---------------------------------------------------------------------------
+
+{-@ type LLRBT k v      = {t: RBT k v      | isLeftLean t}  @-}
+{-@ type LLRBTN k v N   = {t: RBTN k v N   | isLeftLean t}  @-}
+{-@ type LLARBT k v     = {t: ARBT k v     | isLeftLean t}  @-}
+{-@ type LLARBTN k v N  = {t: ARBTN k v N  | isLeftLean t}  @-}
+{-@ type BlackLLRBT k v = {t: BlackRBT k v | isLeftLean t}  @-}
 
 {-@ measure isLeftLean @-}
 {-@ isLeftLean :: RBTree k v -> Bool @-}
@@ -25,9 +31,6 @@ isLeftLean (Node c _ _ l r) = isLeftLean l && isLeftLean r
                            && (col r == B)
 
 
----------------------------------------------------------------------------
--- | Left Leaning Red-Black Trees -----------------------------------------
----------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
 -- | lookup for an element -------------------------------------------------------
@@ -165,9 +168,11 @@ lemma1 t@(Node B k v l r)
 -------------------------------------------------------------------------------
 -- Cost Proof -------------------------------------------------------
 -------------------------------------------------------------------------------
+
 {-@ assume rh_bh :: t:BlackLLRBT k v-> { rh t <= bh t } @-}
 rh_bh :: RBTree k v -> Proof
 rh_bh _ = assumption
+
 
 {-@ ple height_costUB @-}
 {-@ height_costUB 
@@ -180,7 +185,7 @@ height_costUB :: Ord k => RBTree k v -> Proof
 height_costUB t 
     =   height t
     <=. rh t + bh t
-    ? toProof (rh_bh t)
+    --  ? toProof (rh_bh t)
     <=. bh t + bh t
     ==. 2 * bh t
       ? toProof (logTwotoPower (bh t))
@@ -227,9 +232,8 @@ get'_costUB k t
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
 
-{-@ predicate Inva V = isRB V => isARB V            @-}
-{-@ predicate Invb V = (isARB V && IsB V) => isRB V @-}
-{-@ predicate Invc V = (isARB V && IsR V && IsB (left V) && IsB (right V)) => isRB V  @-}
-{-@ predicate Invd V = 0 <= bh V                    @-}
 
-{-@ using (RBTree k v) as {t: RBTree k v | Inva t && Invb t && Invc t && Invd t} @-}
+{-@ using (Color) as {v: Color | v = R || v = B}    @-}
+{-@ using (RBTree k v) as {t: RBTree k v | Invs t } @-}
+{-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | "mao"=="maow" } @-}
+{-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | rh t <= bh t }  @-}

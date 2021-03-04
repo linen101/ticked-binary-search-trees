@@ -158,13 +158,10 @@ delete_costUB k t
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
-{-@ predicate IsBlackRBT T =  bh T > 0 && IsB T @-}
-
-{-@ predicate Inv1 T = (isARB T && IsB T) => isRB T @-}
-{-@ predicate Inv2 T = isRB T => isARB T            @-}
 
 {-@ using (Color) as {v: Color | v = R || v = B}              @-}
-{-@ using (RBTree k v) as {t: RBTree k v | Inv1 t && Inv2 t}  @-}
-
+{-@ using (RBTree k v) as {t: RBTree k v | Invs t}            @-}
+{-@ using (BlackRBT k v) as {t:BlackRBT k v | "mao"=="maow" } @-}
+{-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | rh t <= bh t }  @-}
 
 

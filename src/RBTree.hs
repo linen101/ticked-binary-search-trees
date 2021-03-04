@@ -1,3 +1,5 @@
+
+
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
 
@@ -47,7 +49,7 @@ data Color = B | R deriving (Eq,Show)
 
 --   Black rooted Red-Black Trees   --
 
-{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t >0 } @-} 
+{-@ type BlackRBT k v = {t: RBT k v | IsB t && bh t > 0 } @-} 
 
 -------------------------------------------------------------------------------
 -- | Measures:
@@ -169,7 +171,7 @@ makeBlack (Node _ k v l r) = Node B k v l r
 {-@ reflect set @-}
 {-@ set ::  (Ord k) => k -> v  
             -> t : RBT k v 
-            -> { t' : Tick (RBT k v) 
+            -> { t' : Tick (BlackRBT k v) 
                     | tcost t' <= height t} 
 @-}
 set k v s = fmap makeBlack (insert k v s)
@@ -331,14 +333,17 @@ get_costUB k t
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
 {-@ predicate IsB T = not (col T == R) @-}
-{-@ predicate IsR T = not (col T == B) @-}
-{-@ predicate IsBlackRBT T =  bh T > 0 && IsB T  @-} 
+{-@ predicate IsR T = (col T == R)     @-}
 
-{-@ predicate Invs V = Inv1 V && Inv2 V && Inv3 V   @-}
+{-@ predicate IsBlackRBT T = (isRB T && IsB T && isBH T && bh T > 0) @-}
+
+{-@ predicate Invs V = Inv1 V && Inv2 V  && Inv3 V  @-}
 {-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
 {-@ predicate Inv2 V = isRB V => isARB V            @-}
-{-@ predicate Inv3 V = 0 <= bh V                    @-}
+{-@ predicate Inv3 V = IsBlackRBT V => rh V <= bh V @-}
 
-{-@ using (Color) as {v: Color | v = R || v = B}           @-}
+{-@ using (Color) as {v: Color | v = R || v = B}    @-}
 {-@ using (RBTree k v) as {v: RBTree k v | Invs v}  @-}
-{-@ using (BlackRBT k v) as {t:BlackRBT k v | rh t <= bh t}@-}
+
+{-@ using (BlackRBT k v) as {t:BlackRBT k v | true} @-}
+{-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | rh t <= bh t }  @-}
