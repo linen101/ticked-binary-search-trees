@@ -3,7 +3,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
 
-module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, isRBH, left, right, balanceL, balanceR, height_costUB) where
+module RBTree (Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, balanceL, balanceR, height_costUB) where
 
 
 import Functions_Types (max, min, Nat, Maybe(..), Ordering (..), compare, logTwotoPower, logComp)
@@ -75,16 +75,6 @@ height :: RBTree k v -> Int
 height Nil              = 0
 height (Node _ _ _ l r) = 1 + max (height l) (height r)
 
-{-@ measure left   @-}
-{-@ left :: {t:RBTree k v | size t >0 } -> RBTree k v @-}        
-left :: RBTree k v -> RBTree k v
-left (Node c k v l r) = l
-
-{-@ measure right   @-}
-{-@ right :: {t:RBTree k v | size t >0 } -> RBTree k v @-}        
-right :: RBTree k v -> RBTree k v
-right (Node c k v l r) = r
-
 
 --  check if node is black  --
 
@@ -139,11 +129,6 @@ isRB (Node c k v l r) = isRB l && isRB r
 isARB :: RBTree k v -> Bool
 isARB (Nil)            = True
 isARB (Node c k v l r) = isRB l && isRB r
-
-{-@ measure isRBH @-}
-isRBH (Nil) = True
-isRBH (Node col k v l r) = isRBH l && isRBH r 
-                        && if col == B then rh l <= bh l && rh r <= bh r else True
 
 ---------------------------------------------------------------------------
 -- | lookup for an element -------------------------------------------------------
@@ -345,5 +330,5 @@ get_costUB k t
 {-@ using (Color) as {v: Color | v = R || v = B}    @-}
 {-@ using (RBTree k v) as {v: RBTree k v | Invs v}  @-}
 
-{-@ using (BlackRBT k v) as {t:BlackRBT k v | true} @-}
-{-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | rh t <= bh t }  @-}
+{-@ using (BlackRBT k v) as {t:BlackRBT k v | true}           @-}
+{-@ using (BlackRBT k v) as {t:BlackRBT k v | rh t <= bh t }  @-}

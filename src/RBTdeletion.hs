@@ -6,7 +6,7 @@ module RBTdeletion where
 import Functions_Types (max, min, Nat, Maybe(..))
 import Prelude hiding (Applicative(..), Monad(..), Maybe(..), max, min, log, fmap, (=<<))
 import Log2
-import RBTree(Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, isRBH, left, right, balanceR, balanceL, height_costUB)
+import RBTree(Color(..),RBTree(..), Maybe(..), height, size, isB, bh, rh, isBH, isRB, col, isARB, balanceR, balanceL, height_costUB)
 
 import Language.Haskell.Liquid.RTick
 import Language.Haskell.Liquid.RTick.Combinators
@@ -162,6 +162,6 @@ delete_costUB k t
 {-@ using (Color) as {v: Color | v = R || v = B}              @-}
 {-@ using (RBTree k v) as {t: RBTree k v | Invs t}            @-}
 {-@ using (BlackRBT k v) as {t:BlackRBT k v | "mao"=="maow" } @-}
-{-@ using (BlackLLRBT k v) as {t:BlackLLRBT k v | rh t <= bh t }  @-}
+{-@ using (BlackRBT k v) as {t:BlackRBT k v | rh t <= bh t }  @-}
 
 
