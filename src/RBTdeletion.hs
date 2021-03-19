@@ -129,8 +129,8 @@ merge k (Node B x xv a b) (Node B y yv c d) =  pure (\m -> mergeB m) </> (merge 
     where
         mergeB (Node R z zv b' c')  = Node R z zv (Node B x xv a b') (Node B y yv c' d)
         mergeB bc                   = balL x xv a (Node B y yv c d)
-merge k a (Node R x xv b c)                 =  pure (\l' -> Node R x xv l' c) <*> (merge k a b)    -- IsB l && IsB r => isRB t
-merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') <*> (merge k b c)     -- IsB l && IsB r => isRB t   		
+merge k a (Node R x xv b c)                 =  pure (\l' -> Node R x xv l' c) </> (merge k a b)    -- IsB l && IsB r => isRB t
+merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') </> (merge k b c)     -- IsB l && IsB r => isRB t   		
     
 -------------------------------------------------------------------------------
 -- Cost Proof -------------------------------------------------------
