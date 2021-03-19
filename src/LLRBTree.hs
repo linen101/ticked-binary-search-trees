@@ -73,12 +73,12 @@ set' k v s = fmap makeBlack' (insert' k v s)
 insert' :: Ord k => k -> v -> RBTree k v -> Tick (RBTree k v)
 insert' k v Nil                    = pure (Node R k v Nil Nil)
 insert' k v (Node B key val l r) 
-    | k < key   = step 1 $ eqBind 0 (insert' k v l) (\l' -> balanceL' key val l' r) 
-    | k > key   = step 1 $ eqBind 0 (insert' k v r) (\r' -> balanceR' B key val l r') 
+    | k < key   = pure (\l' -> balanceL' key val l' r) </> (insert' k v l)
+    | k > key   = pure (\r' -> balanceR' B key val l r') </> (insert' k v r) 
     | otherwise = wait (Node B key v l r)
 insert' k v (Node R key val l r) 
     | k < key   = pure (\l' -> Node R key val l' r) </> (insert' k v l)
-    | k > key   = step 1 $ eqBind 0 (insert' k v r) (\r' -> balanceR' R key val l r') 
+    | k > key   = pure (\r' -> balanceR' R key val l r') </> (insert' k v r) 
     | otherwise = wait (Node R key v l r)
 
 ---------------------------------------------------------------------------
@@ -88,27 +88,24 @@ insert' k v (Node R key val l r)
 {-@ balanceL' :: k:k -> v 
                 -> {l : LLARBT {key:k | key < k} v |  size l >0 }
                 -> {r : LLRBTN {key:k | k < key} v {bh l} | IsB r}
-                -> t' : { Tick {t : (LLRBTN k v {bh l+1}) | size t > 0}
-                        | tcost t' == 0 }
-
+                -> {t : (LLRBTN k v {bh l+1}) | size t > 0}
 @-}
-balanceL' :: k -> v -> RBTree k v -> RBTree k v -> Tick (RBTree k v)
-balanceL' z zv (Node R y yv (Node R x xv a b) c) d = pure (Node R y yv (Node B x xv a b) (Node B z zv c d))
-balanceL' x xv a b                                 = pure (Node B x xv a b)
+balanceL' :: k -> v -> RBTree k v -> RBTree k v -> RBTree k v
+balanceL' z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceL' x xv a b                                 = Node B x xv a b
 
 {-@ reflect balanceR' @-}
 {-@ balanceR' :: c:Color -> k:k -> v 
                 -> {l : LLRBT {key:k | key < k} v | c == R =>  IsB l }
                 -> {r : LLRBTN {key:k | k < key} v {bh l} |  (c == R => isRB r) && size r > 0 }
-                -> t' : { Tick {t : (LLARBT k v )| (if (c==B ) then (bh t = bh l + 1) else (bh t = bh l))
+                -> {t : (LLARBT k v )| (if (c==B ) then (bh t = bh l + 1) else (bh t = bh l))
                                    && ((c == B) => isRB t)
                                    && size t > 0}
-                        | tcost t' == 0 }           
 @-}
-balanceR' :: Color -> k -> v -> RBTree k v -> RBTree k v -> Tick ( RBTree k v)
-balanceR' B y yv (Node R x xv a b) (Node R z zv c d) = pure (Node R y yv (Node B x xv a b) (Node B z zv c d))
-balanceR' col y yv x (Node R z zv c d)               = pure (Node col z zv (Node R y yv x c) d )
-balanceR' col x xv a b                               = pure (Node col x xv a b)  
+balanceR' :: Color -> k -> v -> RBTree k v -> RBTree k v -> RBTree k v
+balanceR' B y yv (Node R x xv a b) (Node R z zv c d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceR' col y yv x (Node R z zv c d)               = Node col z zv (Node R y yv x c) d
+balanceR' col x xv a b                               = Node col x xv a b
 -- 
 
 
