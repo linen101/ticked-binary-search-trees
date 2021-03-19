@@ -39,7 +39,7 @@ data Color = B | R deriving (Eq,Show)
 --   Red-Black Trees            --
 
 {-@ type RBT k v    = {v: ARBT k v | isRB v && isBH v} @-}
-{-@ type RBTN k v N = {v: RBT k v  | bh v = N }         @-}
+{-@ type RBTN k v N = {v: RBT k v  | bh v = N }        @-}
 
 
 --  Almost Red-Black Trees      --
@@ -151,6 +151,7 @@ get k' (Node c k v l r)
 ---------------------------------------------------------------------------
 {-@ reflect makeBlack @-}
 {-@ makeBlack :: {t : RBT k v | size t > 0} -> t': BlackRBT k v @-}
+makeBlack :: RBTree k v -> RBTree k v
 makeBlack (Node _ k v l r) = Node B k v l r
 
 {-@ reflect set @-}
@@ -159,6 +160,7 @@ makeBlack (Node _ k v l r) = Node B k v l r
             -> { t' : Tick (BlackRBT k v) 
                     | tcost t' <= height t} 
 @-}
+set :: (Ord k) => k -> v -> RBTree k v -> Tick (RBTree k v)
 set k v s = fmap makeBlack (insert k v s)
 
 {-@ reflect insert @-}
@@ -167,10 +169,11 @@ set k v s = fmap makeBlack (insert k v s)
                 -> { t' : Tick { ts : (RBTN k v {bh t}) | size ts > 0} 
                         | tcost t' <= height t } 
 @-}
+insert :: (Ord k) => k -> v -> RBTree k v -> Tick (RBTree k v)
 insert k v Nil                  = pure (Node R k v Nil Nil)
 insert k v (Node B key val l r) 
-    | k < key   = step 1 $ eqBind 0 (insert k v l) (\l' -> balanceL key val l' r)
-    | k > key   = step 1 $ eqBind 0 (insert k v r) (\r' -> balanceR key val l r')
+    | k < key   = pure (\l' -> balanceL key val l' r) </> (insert k v l) 
+    | k > key   = pure (\r' -> balanceR key val l r') </> (insert k v r) 
     | otherwise = wait (Node B key v l r)
 insert k v (Node R key val l r)     
     | k < key   = pure (\l' -> Node R key val l' r) </> (insert k v l)
@@ -182,26 +185,26 @@ insert k v (Node R key val l r)
 ---------------------------------------------------------------------------
 
 {-@ reflect balanceL @-}
-{-@ balanceL :: k:k -> v 
+{-@ balanceL :: Ord k => k:k -> v 
                 -> {l : ARBT {key:k | key < k} v | size l > 0}
                 -> r : RBTN {key:k | k < key} v {bh l} 
-                -> t' : {Tick {t : (RBTN k v {1 + bh l}) | size t > 0}
-                        | tcost t' == 0 }
+                -> {t : (RBTN k v {1 + bh l}) | size t > 0}
 @-}
-balanceL z zv (Node R y yv (Node R x xv a b) c) d = pure  ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
-balanceL z zv (Node R x xv a (Node R y yv b c)) d = pure ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
-balanceL k v l r                                  = pure (Node B k v l r)
+balanceL :: Ord k => k -> v -> RBTree k v -> RBTree k v -> RBTree k v
+balanceL z zv (Node R y yv (Node R x xv a b) c) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceL z zv (Node R x xv a (Node R y yv b c)) d = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceL k v l r                                  = Node B k v l r
 
 {-@ reflect balanceR @-}
-{-@ balanceR :: k:k -> v 
+{-@ balanceR :: Ord k => k:k -> v 
                 -> l : RBT {key:k | key < k} v 
                 -> {r : ARBTN {key:k | k < key} v {bh l} | size r > 0}
-                -> t': { Tick {t : (RBTN k v {1 + bh l}) | size t > 0} 
-                       | tcost t' == 0}
+                -> {t : (RBTN k v {1 + bh l}) | size t > 0} 
 @-}
-balanceR x xv a (Node R y yv b (Node R z zv c d)) = pure ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
-balanceR x xv a (Node R z zv (Node R y yv b c) d) = pure ( Node R y yv (Node B x xv a b) (Node B z zv c d) )
-balanceR x xv a b                                 = pure (Node B x xv a b)
+balanceR :: Ord k => k -> v -> RBTree k v -> RBTree k v -> RBTree k v
+balanceR x xv a (Node R y yv b (Node R z zv c d)) = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceR x xv a (Node R z zv (Node R y yv b c) d) = Node R y yv (Node B x xv a b) (Node B z zv c d)
+balanceR x xv a b                                 = Node B x xv a b
 
 ---------------------------------------------------------------------------
 -- | Lemmas ---------------------------------------------------------------

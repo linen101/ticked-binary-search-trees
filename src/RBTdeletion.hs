@@ -61,13 +61,13 @@ del k Nil                   = pure Nil
 del k (Node col key v l r) 
     | k < key   = case l of
             Nil            -> wait (Node R key v Nil r)
-            Node B _ _ _ _ -> step 1 $ eqBind 0 (del k l) (\l' -> balL key v l' r)  
+            Node B _ _ _ _ -> pure (\l' -> balL key v l' r) </> (del k l)  
             _              -> pure (\l' -> Node R key v l' r) </> (del k l) 
     | k > key   = case r of
                 Nil            -> wait (Node R key v l Nil)
-                Node B _ _ _ _ -> step 1 $ eqBind 0 (del k r) (\r' -> balR key v l r')
+                Node B _ _ _ _ -> pure (\r' -> balR key v l r') </> (del k r)
                 _              -> pure (\r' -> Node R key v l r') </> (del k r)
-    | otherwise  = step 1 (merge k l r)
+    | otherwise = step 1 (merge k l r)
 
 -------------------------------------------------------------------------------
 -- Rotations -------------------------------------------------------
@@ -82,13 +82,12 @@ del k (Node col key v l r)
 {-@ balL :: Ord k => k:k -> v 
          -> l : ARBT {key:k | key < k} v  
          -> r : RBTN {key:k | key > k} v {bh l+1} 
-         -> t' : { Tick {t : (ARBTN k v {bh l + 1}) | IsB r => isRB t}
-                 | tcost t' == 0 }
+         -> {t : (ARBTN k v {bh l + 1}) | IsB r => isRB t}
 @-}
-balL :: Ord k => k -> v -> RBTree k v -> RBTree k v -> Tick (RBTree k v)
-balL y yv (Node R x xv a b) c                  = pure ( Node R y yv (Node B x xv a b) c )
+balL :: Ord k => k -> v -> RBTree k v -> RBTree k v -> RBTree k v
+balL y yv (Node R x xv a b) c                  = Node R y yv (Node B x xv a b) c
 balL x xv bl r@(Node B _ _ _ _)                = balanceR x xv bl (makeRed r)  
-balL x xv bl (Node R z zv (Node B y yv a b) c) = pure (\r -> Node R y yv (Node B x xv bl a) r ) <*> (balanceR z zv b (makeRed c))
+balL x xv bl (Node R z zv (Node B y yv a b) c) = Node R y yv (Node B x xv bl a) (balanceR z zv b (makeRed c))
 
 -- 	Rebalancing function 
 --  after a deletion from a right subtree 
@@ -99,14 +98,12 @@ balL x xv bl (Node R z zv (Node B y yv a b) c) = pure (\r -> Node R y yv (Node B
 {-@ balR :: Ord k => k:k -> v 
          -> l : RBT {key:k | key < k} v  
          -> r : ARBTN {key:k | key > k} v {bh l - 1} 
-         -> t' : { Tick { t : (ARBTN k v {bh l}) | IsB l => isRB t } 
-                        | tcost t' == 0 }
+         -> {t : (ARBTN k v {bh l}) | IsB l => isRB t } 
 @-} 
-balR :: Ord k => k -> v -> RBTree k v -> RBTree k v -> Tick (RBTree k v)
-balR x xv a (Node R y yv b c)                  = pure ( Node R x xv a (Node B y yv b c) )
+balR :: Ord k => k -> v -> RBTree k v -> RBTree k v -> RBTree k v
+balR x xv a (Node R y yv b c)                  = Node R x xv a (Node B y yv b c)
 balR y yv l@(Node B _ _ _ _) bl                = balanceL y yv (makeRed l) bl 
-balR z zv (Node R x xv a (Node B y yv b c)) bl = pure ( \l -> Node R y yv l (Node B z zv c bl) ) <*> (balanceL x xv (makeRed a) b)
-
+balR z zv (Node R x xv a (Node B y yv b c)) bl = Node R y yv (balanceL x xv (makeRed a) b) (Node B z zv c bl)
 -------------------------------------------------------------------------------
 -- Merge -------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -126,12 +123,12 @@ merge _ Nil x                               =  pure x
 merge _ x Nil                               =  pure x
 merge k (Node R x xv a b) (Node R y yv c d) =  pure (\m -> mergeR m) </> (merge k b c)
     where
-        mergeR (Node R z zv b' c')  = (Node R z zv (Node R x xv a b') (Node R y yv c' d))
-        mergeR bc                   = (Node R x xv a (Node R y yv bc d))
-merge k (Node B x xv a b) (Node B y yv c d) = step 1 $ eqBind 0 (merge k b c) (\m -> mergeB m) 
+        mergeR (Node R z zv b' c')  = Node R z zv (Node R x xv a b') (Node R y yv c' d)
+        mergeR bc                   = Node R x xv a (Node R y yv bc d)
+merge k (Node B x xv a b) (Node B y yv c d) =  pure (\m -> mergeB m) </> (merge k b c) 
     where
-        mergeB (Node R z zv b' c')  = pure ( Node R z zv (Node B x xv a b') (Node B y yv c' d) )
-        mergeB bc                   = (balL x xv a (Node B y yv c d))
+        mergeB (Node R z zv b' c')  = Node R z zv (Node B x xv a b') (Node B y yv c' d)
+        mergeB bc                   = balL x xv a (Node B y yv c d)
 merge k a (Node R x xv b c)                 =  pure (\l' -> Node R x xv l' c) <*> (merge k a b)    -- IsB l && IsB r => isRB t
 merge k (Node R x xv a b) c                 =  pure (\r' -> Node R x xv a r') <*> (merge k b c)     -- IsB l && IsB r => isRB t   		
     
