@@ -32,3 +32,12 @@ We prove the cost of `delete` method on Red-Black Trees in the module `RBTdeleti
 We prove the cost of `set`, `get` methods on Red-Black Trees and the theorem of logarithmic height in the module `LLRBTree`. 
 
 `LLRBTree` imports `RBTree`.
+
+## Auxiliary functions
+We verify properties on auxiliary functions
+
+#### Log
+We copy `Log2` module from [RTick](https://github.com/mathandley/RTick/blob/master/Log2.hs) to verify the logarithmic height property of Red-Black Trees and Left-Leaning Red-Black Trees.
+
+#### Functions_Types
+We include other auxiliary functions in `Functions_Types` module.
